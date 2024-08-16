@@ -1,0 +1,28 @@
+name: cb
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python~=3.10
+  - numpy~=1.26
+  - pandas~=2.2
+  - scikit-learn~=1.5
+  - matplotlib~=3.8
+  - gymnasium~=0.29
+  - pygame~=2.5
+  - pytest~=8.2
+  - plotly~=5.22
+  - tqdm~=4.66
+  - einops~=0.8
+  - pip
+  - black
+  - pip:
+    - torch~=2.3.1
+    - torchvision
+    - torchaudio
+    - --index-url https://download.pytorch.org/whl/cu118
+    - gymnasium[classic-control]
+
+  #usage: conda env create -f environment.yaml 
+  # or conda env create -f environment.yaml --solver=libmamba
+  #if the pip part fails: pip install torch==2.3 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 gymnasium[classic-control]py

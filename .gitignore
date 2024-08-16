@@ -1,0 +1,6 @@
+results/*
+slurm*
+*.png
+*.out
+Minicon*
+violin*
