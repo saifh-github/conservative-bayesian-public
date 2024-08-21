@@ -243,7 +243,7 @@ class Uniform(Bayesian):
         self.non_iid_guardrail = NonIidGuardrail(self, None, alpha)
 
     def get_action(self):
-        return np.random.randint(self.env.n_arm)
+        return np.random.randint(self.env.unwrapped.n_arm)
 
     def run_episode(
         self,
