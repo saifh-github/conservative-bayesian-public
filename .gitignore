@@ -4,3 +4,4 @@ slurm*
 *.out
 Minicon*
 violin*
+__pycache__

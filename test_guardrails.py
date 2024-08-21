@@ -8,23 +8,22 @@ import einops
 import scipy
 import matplotlib.pyplot as plt
 
+gym.envs.registration.register(
+    id="ExplodingBandit",
+    entry_point="envs.exploding_bandit:ExplodingBandit",
+    kwargs={
+        "n_arm": 10,
+        "exploding_frac": 0.1,
+        "d_arm": 10,
+        "k": 2,
+        "exploding": False,
+        "sigma_r": 0.5,
+    },
+)
 
 @pytest.fixture
 def env():
-    gym.envs.registration.register(
-        id="ExplodingBandit",
-        entry_point="envs.exploding_bandit:ExplodingBandit",
-        kwargs={
-            "n_arm": 10,
-            "exploding_frac": 0.1,
-            "d_arm": 10,
-            "k": 2,
-            "exploding": False,
-            "sigma_r": 0.5,
-        },
-    )
     return gym.make("ExplodingBandit")
-
 
 def test_run_episode(env):
     agent = agents.RandomAgent("ExplodingBandit")
@@ -213,7 +212,7 @@ def test_non_iid_guardrail(env, alpha):
 
     print(f"\n alpha = {alpha}. Before ep")
 
-    for arm in range(agent.env.n_arm):
+    for arm in range(agent.env.unwrapped.n_arm):
         p_harm_given_theory = agent.guardrail.p_harm_given_theory(arm)
         m_alpha = agent.guardrail.m_alpha()
         valid_p_harm_given_theory = [
@@ -229,7 +228,7 @@ def test_non_iid_guardrail(env, alpha):
     print(f"\n alpha = {alpha}. After ep")
     agent.run_episode(10)
 
-    for arm in range(agent.env.n_arm):
+    for arm in range(agent.env.unwrapped.n_arm):
         p_harm_given_theory = agent.guardrail.p_harm_given_theory(arm)
         m_alpha = agent.guardrail.m_alpha()
         valid_p_harm_given_theory = [
