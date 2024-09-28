@@ -139,10 +139,8 @@ class NewNonIidGuardrail(Guardrail):
 
     def m_alpha(self):
         posterior = t.exp(self.agent.log_posterior)
-        max_posterior = t.max(posterior)
-        mask_alpha = posterior >= self.alpha
-        mask_max = posterior == max_posterior
-        m_alpha = mask_alpha | mask_max
+        max_posterior, _ = t.max(posterior, dim=0)
+        m_alpha = (posterior == max_posterior) | (posterior >= self.alpha)
         return m_alpha
 
     def harm_estimate(self, action):
