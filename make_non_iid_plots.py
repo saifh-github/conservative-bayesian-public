@@ -11,9 +11,21 @@ parser.add_argument("--timestamp", default="latest")
 
 def get_latest(directory="results/non_iid"):
     pattern = os.path.join(directory, "*")
-    files = glob.glob(pattern)
-    latest = max(files, key=os.path.getmtime)
-    return latest
+    subdirs = [d for d in glob.glob(pattern) if os.path.isdir(d)]
+    
+    latest_time = 0
+    latest_dir = None
+    
+    for subdir in subdirs:
+        files = glob.glob(os.path.join(subdir, "*"))
+        if files:
+            latest_file = max(files, key=os.path.getmtime)
+            mod_time = os.path.getmtime(latest_file)
+            if mod_time > latest_time:
+                latest_time = mod_time
+                latest_dir = subdir
+    
+    return latest_dir
 
 
 def main(args):
