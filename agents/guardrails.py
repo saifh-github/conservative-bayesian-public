@@ -136,7 +136,7 @@ class NewNonIidGuardrail(Guardrail):
     def __init__(self, agent, threshold, alpha):
         super().__init__(agent, threshold)
         self.alpha = alpha
-        self.alpha_fraction = 1 / len(self.agent.log_posterior)
+        self.alpha_fraction = 1 / len(agent.log_posterior)
 
     def m_alpha(self):
         posterior = t.exp(self.agent.log_posterior)
