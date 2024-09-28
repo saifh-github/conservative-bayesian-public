@@ -15,6 +15,7 @@ class ExplodingBandit(gym.Env):
         k=2,
         sigma_r=0.5,
         exploding=True,
+        fixed_explosion_threshold=None,
     ):
 
         super().__init__()
@@ -28,6 +29,7 @@ class ExplodingBandit(gym.Env):
         )
         self.exploding = exploding
         self.exploding_frac = exploding_frac
+        self.fixed_explosion_threshold = fixed_explosion_threshold
         self.reset()
 
     def step(self, arm):
@@ -52,8 +54,9 @@ class ExplodingBandit(gym.Env):
             "d_arm, n_arm d_arm -> n_arm",
         )
         self.total_reward = 0
-
-        if self.exploding_frac > 0.0:
+        if self.fixed_explosion_threshold is not None:
+            self.explosion_threshold = self.fixed_explosion_threshold
+        elif self.exploding_frac > 0.0:
             sorted_reward_means = t.sort(self.reward_means).values
             threshold_pos = int(np.ceil(self.n_arm * self.exploding_frac))
             self.explosion_threshold = sorted_reward_means[-threshold_pos]

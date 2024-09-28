@@ -8,6 +8,7 @@ from agents.guardrails import (
     PosteriorGuardrail,
     IidGuardrail,
     NonIidGuardrail,
+    NewNonIidGuardrail,
 )
 import einops
 import scipy
@@ -47,9 +48,11 @@ class Bayesian(Agent):
             "posterior": PosteriorGuardrail(self, threshold),
             "iid": IidGuardrail(self, threshold),
             "non-iid": NonIidGuardrail(self, threshold, alpha),
+            "new-non-iid": NewNonIidGuardrail(self, threshold=self.threshold, alpha=self.alpha),
             "none": None,
         }
 
+        self.guardrail_type = guardrail
         self.guardrail = guardrails.get(guardrail)
 
         if self.guardrail is not None:

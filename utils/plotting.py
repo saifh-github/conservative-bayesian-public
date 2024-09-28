@@ -7,8 +7,14 @@ def plot_deaths_and_reward_vs_alpha(
     results, plot_error_bars=True, save_path=None, save_format="pdf"
 ):
     n_plots = len(results["posterior"])
-    guardrails = ["iid", "posterior", "cheating"]
-    colors = {"iid": "green", "posterior": "blue", "cheating": "purple"}
+    guardrails_excluding_non_iid = ["iid", "posterior", "cheating"]
+    colors = {
+        "iid": "green",
+        "posterior": "blue",
+        "cheating": "purple",
+        "non_iid": "orange",
+        "new_non_iid": "magenta",
+    }
     error_bar_positions = {
         "iid": 0.3,
         "posterior": 0.6,
@@ -20,39 +26,44 @@ def plot_deaths_and_reward_vs_alpha(
     def format_to_1sf(x, pos):
         return f"{x:.1g}"
 
-    for i, threshold in enumerate([res[0] for res in results["posterior"]]):
+    for i, guardrail_threshold in enumerate([res[0] for res in results["posterior"]]):
         for j, metric in enumerate(["reward", "deaths"]):
             ax = axes[i, j]
 
             # Plot non-iid data
-            alphas = sorted(results["non_iid"].keys())
-            non_iid_data = [
-                next(res for res in results["non_iid"][alpha] if res[0] == threshold)
-                for alpha in alphas
-            ]
+            for guardrail_name in ["non_iid", "new_non_iid"]:
+                alphas = sorted(results[guardrail_name].keys())
+                non_iid_data = [
+                    next(
+                        res
+                        for res in results[guardrail_name][alpha]
+                        if res[0] == guardrail_threshold
+                    )
+                    for alpha in alphas
+                ]
 
-            y = [res[1] if metric == "reward" else res[3] for res in non_iid_data]
-            y_err = (
-                [res[2] if metric == "reward" else res[4] for res in non_iid_data]
-                if plot_error_bars
-                else None
-            )
+                y = [res[1] if metric == "reward" else res[3] for res in non_iid_data]
+                y_err = (
+                    [res[2] if metric == "reward" else res[4] for res in non_iid_data]
+                    if plot_error_bars
+                    else None
+                )
 
-            # Use range(len(alphas)) for x-axis to space points evenly
-            ax.errorbar(
-                range(len(alphas)),
-                y,
-                yerr=y_err,
-                fmt="-o",
-                color="orange",
-                label="Prop 4.6",
-                capsize=5,
-            )
+                # Use range(len(alphas)) for x-axis to space points evenly
+                ax.errorbar(
+                    range(len(alphas)),
+                    y,
+                    yerr=y_err,
+                    fmt="-o",
+                    color=colors[guardrail_name],
+                    label="Prop 4.6" + " (new)" if guardrail_name == "new_non_iid" else "",
+                    capsize=5,
+                )
 
             # Plot other guardrails as dashed lines
             labels = ["Prop 3.4", "Posterior", "Cheating"]
-            for k, guardrail in enumerate(guardrails):
-                data = next(res for res in results[guardrail] if res[0] == threshold)
+            for k, guardrail in enumerate(guardrails_excluding_non_iid):
+                data = next(res for res in results[guardrail] if res[0] == guardrail_threshold)
                 value = data[1] if metric == "reward" else data[3]
                 error = data[2] if metric == "reward" else data[4]
 
@@ -71,7 +82,7 @@ def plot_deaths_and_reward_vs_alpha(
 
             ax.set_xlabel("Alpha")
             ax.set_ylabel("Reward" if metric == "reward" else "Deaths")
-            ax.set_title(f"{metric.capitalize()} vs Alpha (C = {threshold})")
+            ax.set_title(f"{metric.capitalize()} vs Alpha (C = {guardrail_threshold})")
             ax.legend()
 
             # Remove gridlines

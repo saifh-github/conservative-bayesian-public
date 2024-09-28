@@ -130,3 +130,28 @@ class NonIidGuardrail(Guardrail):
         harm_estimate = t.max(p_harm_given_theory_m_alpha)
 
         return harm_estimate
+
+class NewNonIidGuardrail(Guardrail):
+
+    def __init__(self, agent, threshold, alpha):
+        super().__init__(agent, threshold)
+        self.alpha = alpha
+
+    def m_alpha(self):
+        posterior = t.exp(self.agent.log_posterior)
+        max_posterior = t.max(posterior)
+        mask_alpha = posterior >= self.alpha
+        mask_max = posterior == max_posterior
+        m_alpha = mask_alpha | mask_max
+        return m_alpha
+
+    def harm_estimate(self, action):
+        m_alpha = self.m_alpha()
+        p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
+        assert len(p_harm_given_theory_m_alpha) == m_alpha.sum()
+        if self.alpha == 1.0:
+            assert len(p_harm_given_theory_m_alpha) == 1
+        if self.alpha == 0.0:
+            assert len(p_harm_given_theory_m_alpha) == len(self.agent.log_posterior)
+        harm_estimate = t.max(p_harm_given_theory_m_alpha)
+        return harm_estimate

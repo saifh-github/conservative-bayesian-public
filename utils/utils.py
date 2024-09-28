@@ -7,7 +7,7 @@ import gymnasium as gym
 device = t.device("cuda" if t.cuda.is_available() else "cpu")
 
 
-def make_env(args, d_arm, exploding=True):
+def make_env(args, d_arm, exploding=True, fixed_explosion_threshold=None):
 
     gym.envs.registration.register(
         id="ExplodingBandit",
@@ -19,6 +19,7 @@ def make_env(args, d_arm, exploding=True):
             "sigma_r": args.sigma_r,
             "k": args.k,
             "d_arm": d_arm,
+            "fixed_explosion_threshold": fixed_explosion_threshold,
         },
     )
 
