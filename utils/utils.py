@@ -105,12 +105,12 @@ def print_results_table(results):
             ]
             rows.append(row)
 
-    if "non_iid" in results:
-        for alpha, data in results["non_iid"].items():
+    if "non-iid" in results:
+        for alpha, data in results["non-iid"].items():
             _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
 
             row = [
-                f"non_iid, alpha={alpha}",
+                f"non-iid, alpha={alpha}",
                 format_mean_error(reward_mean, reward_error),
                 format_mean_error(deaths_mean, deaths_error),
                 format_mean_error(extras["timesteps_mean"], extras["timesteps_error"]),
@@ -120,6 +120,22 @@ def print_results_table(results):
             ]
             rows.append(row)
 
+    if "new-non-iid" in results:
+        for alpha, data in results["new-non-iid"].items():
+            _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+
+            row = [
+                f"new-non-iid, alpha={alpha}",
+                format_mean_error(reward_mean, reward_error),
+                format_mean_error(deaths_mean, deaths_error),
+                format_mean_error(
+                    extras["timesteps_mean"], extras["timesteps_error"]
+                ),
+                format_mean_error(
+                    extras["rejections_mean"], extras["rejections_error"]
+                ),
+            ]
+            rows.append(row)
     col_widths = [
         max(len(str(row[i])) for row in [headers] + rows) for i in range(len(headers))
     ]

@@ -59,11 +59,11 @@ def main(args):
     results["args"] = args
     for guardrail in ["none", "cheating", "posterior", "iid"]:
         results[guardrail] = []
-    results["non_iid"] = {}
-    results["new_non_iid"] = {}
+    results["non-iid"] = {}
+    results["new-non-iid"] = {}
     for alpha in args.alphas:
-        results["non_iid"][alpha] = []
-        results["new_non_iid"][alpha] = []
+        results["non-iid"][alpha] = []
+        results["new-non-iid"][alpha] = []
 
     for threshold in tqdm(args.guardrail_thresholds, desc="guardrail threshold"):
         # env_fixed = utils.make_env(
