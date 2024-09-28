@@ -48,6 +48,7 @@ def main(args):
     args.save_path = f"results/non_iid/{args.n_episodes}/results.pkl.gz"
 
     t.set_default_device(t.device(args.device))
+    t.set_grad_enabled(False)
     if args.device == "cuda":
         assert (
             t.cuda.is_available()
