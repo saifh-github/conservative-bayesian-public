@@ -48,7 +48,7 @@ class Bayesian(Agent):
             "posterior": PosteriorGuardrail(self, threshold),
             "iid": IidGuardrail(self, threshold),
             "non-iid": NonIidGuardrail(self, threshold, alpha),
-            "new-non-iid": NewNonIidGuardrail(self, threshold=self.threshold, alpha=self.alpha),
+            "new-non-iid": NewNonIidGuardrail(self, threshold, alpha),
             "none": None,
         }
 
