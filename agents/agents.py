@@ -74,7 +74,7 @@ class Bayesian(Agent):
         self.log_posterior = self.log_prior.clone()
 
     def reset(self):
-        self.log_posterior = self.log_prior
+        self.log_posterior = self.log_prior.clone()
 
     def update_beliefs(self, action, reward):
         features = self.env.unwrapped.arm_features[action]
