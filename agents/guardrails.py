@@ -136,6 +136,7 @@ class NewNonIidGuardrail(Guardrail):
     def __init__(self, agent, threshold, alpha):
         super().__init__(agent, threshold)
         self.alpha = alpha
+        self.alpha_fraction = 1 / len(self.agent.log_posterior)
 
     def m_alpha(self):
         posterior = t.exp(self.agent.log_posterior)
@@ -145,7 +146,7 @@ class NewNonIidGuardrail(Guardrail):
             m_alpha[max_indices.item()] = True
         else:
             m_alpha[max_indices[0]] = True
-        m_alpha |= (posterior >= self.alpha)
+        m_alpha |= (posterior >= self.alpha * self.alpha_fraction)
         return m_alpha
 
     def harm_estimate(self, action):
