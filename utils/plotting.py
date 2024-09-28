@@ -56,7 +56,7 @@ def plot_deaths_and_reward_vs_alpha(
                     yerr=y_err,
                     fmt="-o",
                     color=colors[guardrail_name],
-                    label="Prop 4.6" + " (new)" if guardrail_name == "new-non-iid" else "",
+                    label="Prop 4.6" + (" (new)" if guardrail_name == "new-non-iid" else ""),
                     capsize=5,
                 )
 
