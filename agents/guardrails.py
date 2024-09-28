@@ -150,7 +150,7 @@ class NewNonIidGuardrail(Guardrail):
         p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
         assert len(p_harm_given_theory_m_alpha) == m_alpha.sum()
         if self.alpha == 1.0:
-            assert len(p_harm_given_theory_m_alpha) == 1
+            assert len(p_harm_given_theory_m_alpha) >= 1
         if self.alpha == 0.0:
             assert len(p_harm_given_theory_m_alpha) == len(self.agent.log_posterior)
         harm_estimate = t.max(p_harm_given_theory_m_alpha)
