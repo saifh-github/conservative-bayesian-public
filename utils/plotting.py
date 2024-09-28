@@ -12,8 +12,8 @@ def plot_deaths_and_reward_vs_alpha(
         "iid": "green",
         "posterior": "blue",
         "cheating": "purple",
-        "non_iid": "orange",
-        "new_non_iid": "magenta",
+        "non-iid": "orange",
+        "new-non-iid": "magenta",
     }
     error_bar_positions = {
         "iid": 0.3,
@@ -31,7 +31,7 @@ def plot_deaths_and_reward_vs_alpha(
             ax = axes[i, j]
 
             # Plot non-iid data
-            for guardrail_name in ["non_iid", "new_non_iid"]:
+            for guardrail_name in ["non-iid", "new-non-iid"]:
                 alphas = sorted(results[guardrail_name].keys())
                 non_iid_data = [
                     next(
@@ -56,7 +56,7 @@ def plot_deaths_and_reward_vs_alpha(
                     yerr=y_err,
                     fmt="-o",
                     color=colors[guardrail_name],
-                    label="Prop 4.6" + " (new)" if guardrail_name == "new_non_iid" else "",
+                    label="Prop 4.6" + " (new)" if guardrail_name == "new-non-iid" else "",
                     capsize=5,
                 )
 
