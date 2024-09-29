@@ -133,7 +133,7 @@ class NonIidGuardrail(Guardrail):
 
 class NewNonIidGuardrail(Guardrail):
 
-    def __init__(self, agent, threshold, alpha):
+    def __init__(self, agent, threshold, alpha, num_samples=10):
         super().__init__(agent, threshold)
         self.alpha = alpha
 
@@ -145,16 +145,42 @@ class NewNonIidGuardrail(Guardrail):
             m_alpha[max_indices.item()] = True
         else:
             m_alpha[max_indices[0]] = True
-        m_alpha |= (posterior >= self.alpha / len(self.agent.log_posterior))
+        m_alpha |= (posterior >= self.alpha/(10 * len(posterior)))
+
+        # # Sample additional hypotheses where posterior < alpha
+        # low_posterior_mask = (posterior < self.alpha)
+        # low_posterior_indices = low_posterior_mask.nonzero(as_tuple=True)[0]
+        # if low_posterior_indices.numel() > 0:
+        #     low_posterior_values = posterior[low_posterior_indices]
+        #     low_posterior_probs = low_posterior_values / low_posterior_values.sum()
+        #     num_samples = min(self.num_samples, low_posterior_indices.numel())
+        #     sampled_indices = t.multinomial(low_posterior_probs, num_samples, replacement=False)
+        #     sampled_indices = low_posterior_indices[sampled_indices]
+        #     m_alpha[sampled_indices] = True
         return m_alpha
 
+    # def harm_estimate(self, action):
+    #     m_alpha = self.m_alpha()
+    #     p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
+    #     assert len(p_harm_given_theory_m_alpha) == m_alpha.sum()
+    #     # if self.alpha == 1.0:
+    #     #     assert len(p_harm_given_theory_m_alpha) == 1
+    #     # if self.alpha == 0.0:
+    #     #     assert len(p_harm_given_theory_m_alpha) == len(self.agent.log_posterior)
+    #     harm_estimate = t.max(p_harm_given_theory_m_alpha)
+    #     return harm_estimate
     def harm_estimate(self, action):
-        m_alpha = self.m_alpha()
+        posterior = t.exp(self.agent.log_posterior)
+        max_indices = t.argmax(posterior)
+        m_alpha = t.zeros_like(posterior, dtype=t.bool)
+        if max_indices.dim() == 0:
+            m_alpha[max_indices.item()] = True
+        else:
+            m_alpha[max_indices[0]] = True
+        m_alpha |= (posterior >= self.alpha/(10 * len(posterior)))
+
+        selected_posteriors = posterior[m_alpha]
         p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
-        assert len(p_harm_given_theory_m_alpha) == m_alpha.sum()
-        # if self.alpha == 1.0:
-        #     assert len(p_harm_given_theory_m_alpha) == 1
-        # if self.alpha == 0.0:
-        #     assert len(p_harm_given_theory_m_alpha) == len(self.agent.log_posterior)
-        harm_estimate = t.max(p_harm_given_theory_m_alpha)
+        weights = selected_posteriors / selected_posteriors.sum()
+        harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
         return harm_estimate
