@@ -36,7 +36,7 @@ parser.add_argument("--d_arm", default=10, type=int)
 # hyperparameters we vary in the experiment
 parser.add_argument(
     "--alphas",
-    default=[1e-5, 3e-5, 1e-4, 3e-4, 1e-2, 3e-2, 1e-1, 3e-1, 1.0],
+    default=[],
     type=list,
 )
 
@@ -44,6 +44,12 @@ parser.add_argument("--guardrail_thresholds", default=[1e-3, 1e-2, 1e-1], type=l
 
 
 def main(args):
+    # Calculate alphas based on d_arm
+    if args.alphas == []:
+        P_i_star = 1 / (2 ** args.d_arm)
+        delta = 0.1  # 1-delta = 90% probability for Prop. 4.6
+        max_alpha = P_i_star * delta  # α ≤ δ * P(i*)
+        args.alphas = [max_alpha * (0.1 ** i) for i in range(11)]  # 11 log-spaced values
     start_time = time.time()
     args.save_path = f"results/non_iid/{args.n_episodes}/results.pkl.gz"
 

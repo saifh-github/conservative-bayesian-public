@@ -35,15 +35,13 @@ parser.add_argument("--d_arm", default=10, type=int)
 # hyperparameters we vary in the experiment.
 parser.add_argument(
     "--alphas",
-    default=None,
-    type=float,
-    nargs='+',
-    help="List of alpha values. If not provided, will be calculated based on d_arm."
+    default=[],
+    type=list,
 )
 
 def main(args):
     # Calculate alphas based on d_arm
-    if args.alphas is None:
+    if args.alphas == []:
         P_i_star = 1 / (2 ** args.d_arm)
         delta = 0.1  # 1-delta = 90% probability for Prop. 4.6
         max_alpha = P_i_star * delta  # α ≤ δ * P(i*)
