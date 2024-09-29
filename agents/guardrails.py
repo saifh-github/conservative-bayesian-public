@@ -181,6 +181,12 @@ class NewNonIidGuardrail(Guardrail):
 
         selected_posteriors = posterior[m_alpha]
         p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
+
+        # # Weighted mean
+        # weights = selected_posteriors / selected_posteriors.sum()
+        # harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
+
+        # Harmonic mean
         weights = selected_posteriors / selected_posteriors.sum()
-        harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
+        harm_estimate = len(weights) / t.sum(weights / p_harm_given_theory_m_alpha)
         return harm_estimate
