@@ -177,7 +177,7 @@ class NewNonIidGuardrail(Guardrail):
             m_alpha[max_indices.item()] = True
         else:
             m_alpha[max_indices[0]] = True
-        m_alpha |= (posterior >= self.alpha/(10 * len(posterior)))
+        m_alpha |= (posterior >= self.alpha)
 
         selected_posteriors = posterior[m_alpha]
         p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
