@@ -98,7 +98,7 @@ def plot_overestimation(
     alphas = args.alphas
     overestimates = results["overestimates"]
     overestimate_error = results["overestimate error"]
-    p = 1 / (args.d_arm**args.k)
+    p = 1 / (args.k**args.d_arm) 
     theoretical_lower_bound = [1 - (alpha / p) for alpha in alphas]
     theoretical_lower_bound = [max(0, i) for i in theoretical_lower_bound]
 
