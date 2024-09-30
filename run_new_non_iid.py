@@ -45,6 +45,22 @@ def main(cfg: DictConfig):
 
     # Initialize results dictionary
     results = {"cfg": cfg}
+    results["args"] = {
+        "n_episodes": cfg.experiment.n_episodes,
+        "episode_length": cfg.experiment.episode_length,
+        "guardrail_thresholds": cfg.experiment.guardrail_thresholds,
+        "guardrail_baselines": cfg.experiment.guardrail_baselines,
+        "alphas": cfg.experiment.alphas,
+        "exploding_frac": cfg.environment.exploding_frac,
+        "n_arm": cfg.environment.n_arm,
+        "d_arm": cfg.environment.d_arm,
+        "k": cfg.environment.k,
+        "sigma_r": cfg.environment.sigma_r,
+        "beta": cfg.environment.beta,
+        "device": cfg.device,
+        "print": cfg.print,
+        "save_path": cfg.save_path,
+    }
     for guardrail in cfg.experiment.guardrail_baselines:
         results[guardrail] = []
     results["non-iid"] = {}
