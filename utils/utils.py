@@ -29,15 +29,14 @@ def run_episodes(agent, cfg):
     episode_length = cfg.experiment.episode_length
     n_episodes = cfg.experiment.n_episodes
 
-    total_rewards = []
-    total_deaths = []
-    total_rejections = []
+    rewards, rejections, timesteps_survived, deaths = [], [], [], []
 
     for _ in range(n_episodes):
-        rewards, rejections, timesteps_survived, deaths = agent.run_episode(episode_length)
-        total_rewards.append(rewards)
-        total_deaths.append(deaths)
-        total_rejections.append(rejections)
+        ep_rewards, ep_rejections, ep_timesteps_survived, ep_deaths = agent.run_episode(episode_length)
+        rewards.append(ep_rewards)
+        rejections.append(ep_rejections)
+        timesteps_survived.append(ep_timesteps_survived)
+        deaths.append(ep_deaths)
 
     reward_mean, reward_error = get_mean_and_error(rewards)
     deaths_mean, deaths_error = get_mean_and_error(deaths)
