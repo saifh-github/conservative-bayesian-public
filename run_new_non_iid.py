@@ -77,6 +77,7 @@ def main(cfg: DictConfig):
             reward_mean, reward_error, deaths_mean, deaths_error, extras = (
                 guardrail_results
             )
+            custom_score = custom_metric(reward_mean, deaths_mean)
             results[guardrail].append(
                 (
                     threshold,
@@ -85,6 +86,7 @@ def main(cfg: DictConfig):
                     deaths_mean,
                     deaths_error,
                     extras,
+                    custom_score,
                 )
             )
             wandb.log({
@@ -95,8 +97,10 @@ def main(cfg: DictConfig):
                 'deaths_mean': deaths_mean,
                 'deaths_error': deaths_error,
                 'extras': extras,
+                'custom_score': custom_score,
             })
 
+        new_non_iid_custom_scores = []
         for alpha in tqdm(cfg.experiment.alphas, desc="alpha"):
             for guardrail_name in ["non-iid", "new-non-iid"]:
                 # Initialize agent with new-non-iid guardrail
@@ -120,8 +124,8 @@ def main(cfg: DictConfig):
                         reward_error,
                         deaths_mean,
                         deaths_error,
-                        custom_score,
                         extras,
+                        custom_score,
                     )
                 )
 
@@ -134,11 +138,19 @@ def main(cfg: DictConfig):
                     'reward_error': reward_error,
                     'deaths_mean': deaths_mean,
                     'deaths_error': deaths_error,
+                    'extras': extras,
                     'custom_score': custom_score,
                 })
+                if guardrail_name == "new-non-iid":
+                    new_non_iid_custom_scores.append(custom_score)
 
     end_time = time.time()
+    # Calculate and log the average custom metric for new-non-iid
+    average_custom_metric = sum(new_non_iid_custom_scores) / len(new_non_iid_custom_scores)
+    wandb.log({'average_custom_metric': average_custom_metric})
+    
     if cfg.print:
+        print(f"Average custom metric for new-non-iid: {average_custom_metric}")
         utils.print_results_table(results)
     execution_time = end_time - start_time
     results["execution_time"] = execution_time

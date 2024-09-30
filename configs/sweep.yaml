@@ -2,7 +2,7 @@ program: run_non_iid_experiment.py
 project: conservative-bayesian-agent
 method: bayes
 metric:
-  name: reward_mean
+  name: average_custom_metric
   goal: maximize
 parameters:
   guardrail_new_non_iid.mean_type:
@@ -21,3 +21,8 @@ parameters:
     values: [0, 1]
   guardrail_new_non_iid.harm_estimates_weights.quantile:
     values: [0, 1]
+command:
+  # - ${env}
+  - python
+  - ${program}
+  - ${args_no_hyphens}
