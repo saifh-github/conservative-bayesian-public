@@ -202,21 +202,21 @@ class NewNonIidGuardrail(Guardrail):
         # Based on increases in posteriors
         ############################
         no_increase = False
-        differences = t.clamp(posterior[m_alpha] - t.exp(self.agent.prior)[m_alpha], min=0)
+        differences = t.clamp(posterior[m_alpha] - t.exp(self.agent.log_prior)[m_alpha], min=0)
         if t.all(differences == 0):
             # If all differences are zero, use the harm estimate of the top posterior
             harm_estimate = t.max(p_harm_given_theory_m_alpha[t.argmax(posterior[m_alpha])])
             no_increase = True
 
-        # # Weighted Mean: Based on increases in posteriors
-        # if not no_increase:
-        #     weights = differences / differences.sum()
-        #     harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
-
-        # Geometric Mean: Based on increases in posteriors
+        # Weighted Mean: Based on increases in posteriors
         if not no_increase:
             weights = differences / differences.sum()
-            harm_estimate = t.exp(t.sum(weights * t.log(p_harm_given_theory_m_alpha)))
+            harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
+
+        # # Geometric Mean: Based on increases in posteriors
+        # if not no_increase:
+        #     weights = differences / differences.sum()
+        #     harm_estimate = t.exp(t.sum(weights * t.log(p_harm_given_theory_m_alpha)))
 
         # # Harmonic Mean: Based on increases in posteriors
         # if not no_increase:
