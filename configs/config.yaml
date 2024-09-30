@@ -1,7 +1,7 @@
 defaults:
   - _self_
 
-device: "gpu"
+device: "cuda"
 save_path: "results/non_iid/results.pkl.gz"
 print: true
 
