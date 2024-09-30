@@ -26,8 +26,8 @@ def get_mean_and_error(data):
 
 
 def run_episodes(agent, cfg):
-    episode_length = cfg.episode_length
-    n_episodes = cfg.n_episodes
+    episode_length = cfg.experiment.episode_length
+    n_episodes = cfg.experiment.n_episodes
 
     total_rewards = []
     total_deaths = []
