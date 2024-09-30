@@ -2,6 +2,7 @@ import numpy as np
 import torch as t
 import einops
 from agents import agents as agents
+from utils.utils_numerical import log_survival_function
 
 
 class Guardrail:
@@ -51,12 +52,20 @@ class Guardrail:
 
     def log_p_harm_given_theory(self, action):
         arm_features = self.agent.env.unwrapped.arm_features[action]
-        reward_means_given_theory = t.mv(self.agent.hypotheses, arm_features)
+        reward_means_given_theory = t.mv(self.agent.hypotheses, arm_features) # n_hypotheses d_arm, d_arm -> n_hypotheses
 
-        # Calculate log(1 - CDF) directly for numerical stability
-        log_p_harm_given_theory = t.distributions.Normal(
-            loc=reward_means_given_theory, scale=self.agent.env.unwrapped.sigma_r
-        ).log_survival_function(self.agent.env.unwrapped.explosion_threshold)
+        # # Calculate log(1 - CDF) directly for numerical stability
+        # log_p_harm_given_theory = t.distributions.Normal(
+        #     loc=reward_means_given_theory, scale=self.agent.env.unwrapped.sigma_r
+        # ).log_survival_function(self.agent.env.unwrapped.explosion_threshold)
+        explosion_threshold = self.agent.env.unwrapped.explosion_threshold
+        sigma_r = self.agent.env.unwrapped.sigma_r
+
+        log_p_harm_given_theory = log_survival_function(
+            explosion_threshold,
+            loc=reward_means_given_theory,
+            scale=sigma_r
+        )
 
         return log_p_harm_given_theory
 
