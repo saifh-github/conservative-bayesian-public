@@ -7,7 +7,7 @@ print: true
 
 # Experiment
 experiment:
-  n_episodes: 100
+  n_episodes: 250
   episode_length: 25
   guardrail_thresholds: [0.001, 0.01, 0.1]
   guardrail_baselines: ["none", "cheating", "posterior", "iid"]
