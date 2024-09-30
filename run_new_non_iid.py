@@ -114,24 +114,6 @@ def main(cfg: DictConfig):
             )
         })
 
-        # custom charts with error bars using wandb.plot.scatter
-        wandb.log({
-            f"reward_chart_with_error_bars_threshold_{threshold}": wandb.plot.scatter(
-                x=[x for data in reward_data.values() for x in data['x']],
-                y=[y for data in reward_data.values() for y in data['y']],
-                error_y=[e for data in reward_data.values() for e in data['error']],
-                labels=[k for k in reward_data.keys() for _ in reward_data[k]['x']],
-                title=f"Reward vs Alpha with Error Bars (Threshold: {threshold})"
-            ),
-            f"deaths_chart_with_error_bars_threshold_{threshold}": wandb.plot.scatter(
-                x=[x for data in deaths_data.values() for x in data['x']],
-                y=[y for data in deaths_data.values() for y in data['y']],
-                error_y=[e for data in deaths_data.values() for e in data['error']],
-                labels=[k for k in deaths_data.keys() for _ in deaths_data[k]['x']],
-                title=f"Deaths vs Alpha with Error Bars (Threshold: {threshold})"
-            )
-        })
-
     for threshold in tqdm(cfg.experiment.guardrail_thresholds, desc="guardrail threshold"):
         env_variable = utils.make_env(cfg.environment)
         if not cfg.device == "cuda":
