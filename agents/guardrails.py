@@ -181,8 +181,8 @@ class NewNonIidGuardrail(Guardrail):
 
         p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
         
-        # Default
-        harm_estimate = t.max(p_harm_given_theory_m_alpha)
+        # # Default
+        # harm_estimate = t.max(p_harm_given_theory_m_alpha)
         
         # # Weighted mean
         # selected_posteriors = posterior[m_alpha]
@@ -198,20 +198,20 @@ class NewNonIidGuardrail(Guardrail):
         # selected_posteriors = posterior[m_alpha]
         # harm_estimate = selected_posteriors.sum() / t.sum(selected_posteriors / p_harm_given_theory_m_alpha)
 
-        # ############################
-        # # Based on increases in posteriors
-        # ############################
-        # no_increase = False
-        # differences = t.clamp(posterior[m_alpha] - t.exp(self.agent.log_prior)[m_alpha], min=0)
-        # if t.all(differences == 0):
-        #     # If all differences are zero, use the harm estimate of the top posterior
-        #     harm_estimate = t.max(p_harm_given_theory_m_alpha[t.argmax(posterior[m_alpha])])
-        #     no_increase = True
+        ############################
+        # Based on increases in posteriors
+        ############################
+        no_increase = False
+        differences = t.clamp(posterior[m_alpha] - t.exp(self.agent.log_prior)[m_alpha], min=0)
+        if t.all(differences == 0):
+            # If all differences are zero, use the harm estimate of the top posterior
+            harm_estimate = t.max(p_harm_given_theory_m_alpha[t.argmax(posterior[m_alpha])])
+            no_increase = True
 
-        # # Weighted Mean: Based on increases in posteriors
-        # if not no_increase:
-        #     weights = differences / differences.sum()
-        #     harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
+        # Weighted Mean: Based on increases in posteriors
+        if not no_increase:
+            weights = differences / differences.sum()
+            harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
 
         # # Geometric Mean: Based on increases in posteriors
         # if not no_increase:
