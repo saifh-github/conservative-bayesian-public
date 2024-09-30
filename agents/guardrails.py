@@ -215,7 +215,7 @@ class NewNonIidGuardrail(Guardrail):
         ############################
         no_increase = False
         differences = t.clamp(posterior[m_alpha] - t.exp(self.agent.log_prior)[m_alpha], min=0)
-        if t.allclose(differences, 0):
+        if t.allclose(differences, t.zeros_like(differences)):
             # If all differences are zero, use the harm estimate of the top posterior
             harm_estimate = t.max(p_harm_given_theory_m_alpha[t.argmax(posterior[m_alpha])])
             no_increase = True
