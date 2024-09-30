@@ -225,13 +225,13 @@ class NewNonIidGuardrail(Guardrail):
         # if not no_increase:
         #     harm_estimate = t.dot(differences, p_harm_given_theory_m_alpha) / differences.sum()
 
-        # Geometric Mean: Based on increases in posteriors
-        if not no_increase:
-            log_p_harm_given_theory_m_alpha = self.log_p_harm_given_theory(action)[m_alpha]
-            harm_estimate = t.exp(t.dot(differences, log_p_harm_given_theory_m_alpha) / differences.sum())
-
-        # # Harmonic Mean: Based on increases in posteriors
+        # # Geometric Mean: Based on increases in posteriors
         # if not no_increase:
-        #     harm_estimate = differences.sum() / t.sum(differences / p_harm_given_theory_m_alpha)
+        #     log_p_harm_given_theory_m_alpha = self.log_p_harm_given_theory(action)[m_alpha]
+        #     harm_estimate = t.exp(t.dot(differences, log_p_harm_given_theory_m_alpha) / differences.sum())
+
+        # Harmonic Mean: Based on increases in posteriors
+        if not no_increase:
+            harm_estimate = differences.sum() / t.sum(differences / p_harm_given_theory_m_alpha)
 
         return harm_estimate
