@@ -156,7 +156,6 @@ class NewNonIidGuardrail(Guardrail):
         agent,
         threshold,
         alpha,
-        num_samples=10,
         mean_type="arithmetic",
         posterior_increases=False,
         softmax_temperature=None,
@@ -177,6 +176,8 @@ class NewNonIidGuardrail(Guardrail):
                 + harm_estimates_weights["mean"]
                 + harm_estimates_weights["quantile"]
             )
+            if total_weight == 0:
+                raise ValueError("Sum of harm_estimates_weights cannot be zero.")
             self.harm_estimates_weights = {
                 "max": harm_estimates_weights["max"] / total_weight,
                 "mean": harm_estimates_weights["mean"] / total_weight,
@@ -216,30 +217,69 @@ class NewNonIidGuardrail(Guardrail):
     def harm_estimate(self, action):
         posterior = t.exp(self.agent.log_posterior)
         m_alpha = self.m_alpha(posterior)
-
-        # harm_estimate = self.max_harm_estimate(action, m_alpha)
-        # harm_estimate = self.posterior_mean_harm_estimate(
-        #     posterior, action, m_alpha, mean_type="harmonic", posterior_increases=True, softmax_temperature=self.softmax_temperature, power_mean_exponent=self.power_mean_exponent
-        # )
-
-        harm_estimate = self.balance_harm_estimates(posterior, action, m_alpha, harm_estimates_weights=self.harm_estimates_weights, mean_type=self.mean_type, posterior_increases=self.posterior_increases, softmax_temperature=self.softmax_temperature, power_mean_exponent=self.power_mean_exponent)
-
+        harm_estimate = self.balance_harm_estimates(
+            posterior,
+            action,
+            m_alpha,
+            harm_estimates_weights=self.harm_estimates_weights,
+            mean_type=self.mean_type,
+            posterior_increases=self.posterior_increases,
+            softmax_temperature=self.softmax_temperature,
+            power_mean_exponent=self.power_mean_exponent,
+        )
         return harm_estimate
 
-    def balance_harm_estimates(self, posterior, action, m_alpha, harm_estimates_weights=None, mean_type="arithmetic", posterior_increases=False, softmax_temperature=None, power_mean_exponent=1.0):
+    def balance_harm_estimates(
+        self,
+        posterior,
+        action,
+        m_alpha,
+        harm_estimates_weights=None,
+        mean_type="arithmetic",
+        posterior_increases=False,
+        softmax_temperature=None,
+        power_mean_exponent=1.0,
+    ):
+        total_weight = (
+            harm_estimates_weights["max"]
+            + harm_estimates_weights["mean"]
+            + harm_estimates_weights["quantile"]
+        )
+        if total_weight == 0:
+            raise ValueError("Sum of harm_estimates_weights cannot be zero.")
+
         if harm_estimates_weights["max"] > 0:
             max_harm = self.max_harm_estimate(action, m_alpha)
         else:
-            max_harm = 0
+            max_harm = 0.0
+
         if harm_estimates_weights["mean"] > 0:
-            mean_harm = self.posterior_mean_harm_estimate(posterior, action, m_alpha, mean_type, posterior_increases, softmax_temperature, power_mean_exponent)
+            mean_harm = self.posterior_mean_harm_estimate(
+                posterior,
+                action,
+                m_alpha,
+                mean_type,
+                posterior_increases,
+                softmax_temperature,
+                power_mean_exponent,
+            )
         else:
-            mean_harm = 0
+            mean_harm = 0.0
+
         if harm_estimates_weights["quantile"] > 0:
-            quantile_harm = self.quantile_harm_estimate(action, m_alpha, quantile=self.quantile)
+            quantile_harm = self.quantile_harm_estimate(
+                action, m_alpha, quantile=self.quantile
+            )
         else:
-            quantile_harm = 0
-        return harm_estimates_weights["max"] * max_harm + harm_estimates_weights["mean"] * mean_harm + harm_estimates_weights["quantile"] * quantile_harm
+            quantile_harm = 0.0
+
+        harm_estimate = (
+            harm_estimates_weights["max"] * max_harm
+            + harm_estimates_weights["mean"] * mean_harm
+            + harm_estimates_weights["quantile"] * quantile_harm
+        )
+
+        return harm_estimate
 
     def quantile_harm_estimate(self, action, m_alpha, quantile=0.8):
         p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
@@ -301,4 +341,6 @@ class NewNonIidGuardrail(Guardrail):
                 weights / p_harm_given_theory_m_alpha
             )
             harm_estimate = harm_estimate ** (1 / power_mean_exponent)
+        else:
+            raise ValueError(f"Unknown mean_type: {mean_type}")
         return harm_estimate

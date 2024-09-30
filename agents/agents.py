@@ -39,21 +39,35 @@ class Bayesian(Agent):
         guardrail=None,
         threshold=0.05,
         alpha=None,
+        guardrail_params=None,
     ):
         super().__init__(env_id, env)
         self.name = name
 
-        guardrails = {
-            "cheating": CheatingGuardrail(self, threshold),
-            "posterior": PosteriorGuardrail(self, threshold),
-            "iid": IidGuardrail(self, threshold),
-            "non-iid": NonIidGuardrail(self, threshold, alpha),
-            "new-non-iid": NewNonIidGuardrail(self, threshold, alpha),
-            "none": None,
-        }
+        if guardrail == "new-non-iid":
+            self.guardrail_type = guardrail
+            self.guardrail = NewNonIidGuardrail(
+                self,
+                threshold,
+                alpha,
+                mean_type=guardrail_params.mean_type,
+                posterior_increases=guardrail_params.posterior_increases,
+                softmax_temperature=guardrail_params.softmax_temperature,
+                power_mean_exponent=guardrail_params.power_mean_exponent,
+                quantile=guardrail_params.quantile,
+                harm_estimates_weights=guardrail_params.harm_estimates_weights,
+            )
+        else:
+            guardrails = {
+                "cheating": CheatingGuardrail(self, threshold),
+                "posterior": PosteriorGuardrail(self, threshold),
+                "iid": IidGuardrail(self, threshold),
+                "non-iid": NonIidGuardrail(self, threshold, alpha),
+                "none": None,
+            }
 
-        self.guardrail_type = guardrail
-        self.guardrail = guardrails.get(guardrail)
+            self.guardrail_type = guardrail
+            self.guardrail = guardrails.get(guardrail)
 
         if self.guardrail is not None:
             self.name += f"+{guardrail}Guardrail"
@@ -193,6 +207,7 @@ class Boltzmann(Bayesian):
         threshold=0.05,
         beta=0.5,
         alpha=None,
+        guardrail_params=None,
     ):
         super().__init__(
             env_id=env_id,
@@ -201,6 +216,7 @@ class Boltzmann(Bayesian):
             guardrail=guardrail,
             threshold=threshold,
             alpha=alpha,
+            guardrail_params=guardrail_params,
         )
         self.beta = beta
 
