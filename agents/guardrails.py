@@ -151,13 +151,47 @@ class NonIidGuardrail(Guardrail):
 
 
 class NewNonIidGuardrail(Guardrail):
-
-    def __init__(self, agent, threshold, alpha, num_samples=10):
+    def __init__(
+        self,
+        agent,
+        threshold,
+        alpha,
+        num_samples=10,
+        mean_type="arithmetic",
+        posterior_increases=False,
+        softmax_temperature=None,
+        power_mean_exponent=1.0,
+        quantile=0.8,
+        harm_estimates_weights=None,
+    ):
         super().__init__(agent, threshold)
         self.alpha = alpha
+        self.mean_type = mean_type
+        self.posterior_increases = posterior_increases
+        self.softmax_temperature = softmax_temperature
+        self.power_mean_exponent = power_mean_exponent
+        self.quantile = quantile
+        if harm_estimates_weights is not None:
+            total_weight = (
+                harm_estimates_weights["max"]
+                + harm_estimates_weights["mean"]
+                + harm_estimates_weights["quantile"]
+            )
+            self.harm_estimates_weights = {
+                "max": harm_estimates_weights["max"] / total_weight,
+                "mean": harm_estimates_weights["mean"] / total_weight,
+                "quantile": harm_estimates_weights["quantile"] / total_weight,
+            }
+        else:
+            self.harm_estimates_weights = {
+                "max": 1.0,
+                "mean": 0.0,
+                "quantile": 0.0,
+            }
 
-    def m_alpha(self):
-        posterior = t.exp(self.agent.log_posterior)
+    def m_alpha(self, posterior=None):
+        if posterior is None:
+            posterior = t.exp(self.agent.log_posterior)
         max_indices = t.argmax(posterior)
         m_alpha = t.zeros_like(posterior, dtype=t.bool)
         if max_indices.dim() == 0:
@@ -176,34 +210,40 @@ class NewNonIidGuardrail(Guardrail):
         #     sampled_indices = t.multinomial(low_posterior_probs, num_samples, replacement=False)
         #     sampled_indices = low_posterior_indices[sampled_indices]
         #     m_alpha[sampled_indices] = True
+
         return m_alpha
 
-    # def harm_estimate(self, action):
-    #     m_alpha = self.m_alpha()
-    #     p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
-    #     assert len(p_harm_given_theory_m_alpha) == m_alpha.sum()
-    #     # if self.alpha == 1.0:
-    #     #     assert len(p_harm_given_theory_m_alpha) == 1
-    #     # if self.alpha == 0.0:
-    #     #     assert len(p_harm_given_theory_m_alpha) == len(self.agent.log_posterior)
-    #     harm_estimate = t.max(p_harm_given_theory_m_alpha)
-    #     return harm_estimate
     def harm_estimate(self, action):
         posterior = t.exp(self.agent.log_posterior)
-        max_indices = t.argmax(posterior)
-        m_alpha = t.zeros_like(posterior, dtype=t.bool)
-        if max_indices.dim() == 0:
-            m_alpha[max_indices.item()] = True
-        else:
-            m_alpha[max_indices[0]] = True
-        m_alpha |= posterior >= self.alpha
+        m_alpha = self.m_alpha(posterior)
 
         # harm_estimate = self.max_harm_estimate(action, m_alpha)
-        harm_estimate = self.posterior_mean_harm_estimate(
-            posterior, action, m_alpha, mean_type="harmonic", posterior_increases=True
-        )
+        # harm_estimate = self.posterior_mean_harm_estimate(
+        #     posterior, action, m_alpha, mean_type="harmonic", posterior_increases=True, softmax_temperature=self.softmax_temperature, power_mean_exponent=self.power_mean_exponent
+        # )
+
+        harm_estimate = self.balance_harm_estimates(posterior, action, m_alpha, harm_estimates_weights=self.harm_estimates_weights, mean_type=self.mean_type, posterior_increases=self.posterior_increases, softmax_temperature=self.softmax_temperature, power_mean_exponent=self.power_mean_exponent)
 
         return harm_estimate
+
+    def balance_harm_estimates(self, posterior, action, m_alpha, harm_estimates_weights=None, mean_type="arithmetic", posterior_increases=False, softmax_temperature=None, power_mean_exponent=1.0):
+        if harm_estimates_weights["max"] > 0:
+            max_harm = self.max_harm_estimate(action, m_alpha)
+        else:
+            max_harm = 0
+        if harm_estimates_weights["mean"] > 0:
+            mean_harm = self.posterior_mean_harm_estimate(posterior, action, m_alpha, mean_type, posterior_increases, softmax_temperature, power_mean_exponent)
+        else:
+            mean_harm = 0
+        if harm_estimates_weights["quantile"] > 0:
+            quantile_harm = self.quantile_harm_estimate(action, m_alpha, quantile=self.quantile)
+        else:
+            quantile_harm = 0
+        return harm_estimates_weights["max"] * max_harm + harm_estimates_weights["mean"] * mean_harm + harm_estimates_weights["quantile"] * quantile_harm
+
+    def quantile_harm_estimate(self, action, m_alpha, quantile=0.8):
+        p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
+        return t.quantile(p_harm_given_theory_m_alpha, quantile)
 
     def max_harm_estimate(self, action, m_alpha):
         p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
@@ -216,60 +256,49 @@ class NewNonIidGuardrail(Guardrail):
         m_alpha,
         mean_type="arithmetic",
         posterior_increases=False,
+        softmax_temperature=None,
+        power_mean_exponent=1.0,
+        epsilon=1e-12, # to avoid division by zero
     ):
         selected_posteriors = posterior[m_alpha]
-        if not posterior_increases:
-            if mean_type == "arithmetic":
-                p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
-                harm_estimate = (
-                    t.dot(selected_posteriors, p_harm_given_theory_m_alpha)
-                    / selected_posteriors.sum()
-                )
-            elif mean_type == "geometric":
-                log_p_harm_given_theory_m_alpha = self.log_p_harm_given_theory(action)[
-                    m_alpha
-                ]
-                harm_estimate = t.exp(
-                    t.dot(selected_posteriors, log_p_harm_given_theory_m_alpha)
-                    / selected_posteriors.sum()
-                )
-            elif mean_type == "harmonic":
-                p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
-                harm_estimate = selected_posteriors.sum() / t.sum(
-                    selected_posteriors / p_harm_given_theory_m_alpha
-                )
-            return harm_estimate
-        else:
+        if posterior_increases:
             # Weighted by increases in posteriors
             selected_priors = t.exp(self.agent.log_prior)[m_alpha]
-            differences = t.clamp(selected_posteriors - selected_priors, min=0)
+            weights = t.clamp(selected_posteriors - selected_priors, min=0)
+        else:
+            weights = selected_posteriors
 
-            if t.allclose(differences, t.zeros_like(differences)):
-                # If all differences are zero, use the harm estimate of the top posterior
-                p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
-                harm_estimate = t.max(
-                    p_harm_given_theory_m_alpha[t.argmax(posterior[m_alpha])]
-                )
-                return harm_estimate
-
-            if mean_type == "arithmetic":
-                p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
-                harm_estimate = (
-                    t.dot(differences, p_harm_given_theory_m_alpha) / differences.sum()
-                )
-            elif mean_type == "geometric":
-                log_p_harm_given_theory_m_alpha = self.log_p_harm_given_theory(action)[
-                    m_alpha
-                ]
-                harm_estimate = t.exp(
-                    t.dot(differences, log_p_harm_given_theory_m_alpha)
-                    / differences.sum()
-                )
-            elif mean_type == "harmonic":
-                p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
-                epsilon = 1e-12  # Small constant to prevent division by zero
-                harm_estimate = differences.sum() / t.sum(
-                    differences / (p_harm_given_theory_m_alpha + epsilon)
-                )
-
+        if t.allclose(weights, t.zeros_like(weights)):
+            # If all weights are zero, use the harm estimate of the top posterior
+            p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
+            harm_estimate = t.max(
+                p_harm_given_theory_m_alpha[t.argmax(selected_posteriors)]
+            )
             return harm_estimate
+
+        if softmax_temperature is not None:
+            weights = t.softmax(weights / softmax_temperature, dim=0)
+
+        if mean_type == "arithmetic":
+            p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
+            p_harm_given_theory_m_alpha = p_harm_given_theory_m_alpha ** power_mean_exponent
+            harm_estimate = (
+                t.dot(weights, p_harm_given_theory_m_alpha)
+                / weights.sum()
+            ) ** (1 / power_mean_exponent)
+        elif mean_type == "geometric":
+            log_p_harm_given_theory_m_alpha = power_mean_exponent * self.log_p_harm_given_theory(action)[
+                m_alpha
+            ]
+            harm_estimate = t.exp(
+                t.dot(weights, log_p_harm_given_theory_m_alpha)
+                / (weights.sum() * power_mean_exponent)
+            )
+        elif mean_type == "harmonic":
+            p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
+            p_harm_given_theory_m_alpha = p_harm_given_theory_m_alpha ** power_mean_exponent
+            harm_estimate = weights.sum() / t.sum(
+                weights / p_harm_given_theory_m_alpha
+            )
+            harm_estimate = harm_estimate ** (1 / power_mean_exponent)
+        return harm_estimate
