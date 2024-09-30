@@ -57,9 +57,7 @@ class Guardrail:
 
     def log_p_harm_given_theory(self, action):
         arm_features = self.agent.env.unwrapped.arm_features[action]
-        reward_means_given_theory = t.matmul(
-            self.agent.hypotheses.float().T, arm_features.float()
-        )
+        reward_means_given_theory = t.mv(self.agent.hypotheses, arm_features)
 
         # Calculate log(1 - CDF) directly for numerical stability
         log_p_harm_given_theory = t.distributions.Normal(
