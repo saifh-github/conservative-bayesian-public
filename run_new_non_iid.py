@@ -31,7 +31,9 @@ def main(cfg: DictConfig):
         max_alpha = P_i_star * delta  # α ≤ δ * P(i*)
         cfg.experiment.alphas = [max_alpha * (0.1 ** i) for i in range(9)]  # log-spaced values
     cfg.save_path = f"results/non_iid/{cfg.experiment.n_episodes}/results.pkl.gz"
-    wandb.init(project="conservative-bayesian-agent", config=cfg)
+    
+    wandb_config = dict(cfg)
+    wandb.init(project="conservative-bayesian-agent", config=wandb_config)
 
     t.set_default_device(t.device(cfg.device))
     t.set_grad_enabled(False)
