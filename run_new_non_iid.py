@@ -75,7 +75,7 @@ def main(cfg: DictConfig):
 
     # Use hyperparameters from cfg.guardrail
     for threshold in tqdm(cfg.experiment.guardrail_thresholds, desc="guardrail threshold"):
-        env_variable = utils.make_env(cfg)
+        env_variable = utils.make_env(cfg.environment)
         if not cfg.device == "cuda":
             env_variable.reset()
             env_variable.render()

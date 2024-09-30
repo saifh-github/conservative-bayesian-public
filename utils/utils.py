@@ -4,9 +4,7 @@ import torch as t
 import gymnasium as gym
 from envs.exploding_bandit import ExplodingBandit
 
-
 device = t.device("cuda" if t.cuda.is_available() else "cpu")
-
 
 def make_env(cfg):
     env = ExplodingBandit(
@@ -15,11 +13,10 @@ def make_env(cfg):
         d_arm=cfg.d_arm,
         sigma_r=cfg.sigma_r,
         k=cfg.k,
-        exploding=True,
-        fixed_explosion_threshold=None,
+        exploding=cfg.exploding,
+        fixed_explosion_threshold=cfg.fixed_explosion_threshold,
     )
     return env
-
 
 def get_mean_and_error(data):
     mean = np.mean(data)

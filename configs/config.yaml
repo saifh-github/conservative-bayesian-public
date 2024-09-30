@@ -17,6 +17,8 @@ experiment:
 environment:
   exploding_frac: 0.01
   episode_length: 25
+  exploding: true
+  fixed_explosion_threshold: null
   # Agent
   n_arm: 10
   d_arm: 10
