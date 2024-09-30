@@ -49,7 +49,7 @@ def main(args):
         P_i_star = 1 / (2 ** args.d_arm)
         delta = 0.1  # 1-delta = 90% probability for Prop. 4.6
         max_alpha = P_i_star * delta  # α ≤ δ * P(i*)
-        args.alphas = [max_alpha * (0.1 ** i) for i in range(11)]  # 11 log-spaced values
+        args.alphas = [max_alpha * (0.1 ** i) for i in range(1, 10)]  # log-spaced values
     start_time = time.time()
     args.save_path = f"results/non_iid/{args.n_episodes}/results.pkl.gz"
 
