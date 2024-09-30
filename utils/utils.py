@@ -70,10 +70,7 @@ def run_tightness_episodes(agent, args):
 
 
 def print_results_table(results):
-    """
-    Prints the results table for the most recent phase of training
-    """
-    headers = ["Guardrail", "Reward", "Deaths", "Timesteps", "Rejections"]
+    headers = ["Guardrail", "Reward", "Deaths", "Timesteps", "Rejections", "Custom Score"]
     rows = []
 
     def format_mean_error(mean, error):
@@ -81,17 +78,20 @@ def print_results_table(results):
 
     for guardrail in ["none", "cheating", "posterior", "iid"]:
         if guardrail in results:
-            _, reward_mean, reward_error, deaths_mean, deaths_error, extras = results[
-                guardrail
-            ][-1]
+            data = results[guardrail][-1]
+            if len(data) == 7:  # Check if custom_score is included
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = data
+            else:
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data
+                custom_score = "N/A"
+            
             row = [
                 guardrail,
                 format_mean_error(reward_mean, reward_error),
                 format_mean_error(deaths_mean, deaths_error),
                 format_mean_error(extras["timesteps_mean"], extras["timesteps_error"]),
-                format_mean_error(
-                    extras["rejections_mean"], extras["rejections_error"]
-                ),
+                format_mean_error(extras["rejections_mean"], extras["rejections_error"]),
+                custom_score,
             ]
             rows.append(row)
 

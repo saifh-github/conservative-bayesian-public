@@ -177,12 +177,17 @@ class NewNonIidGuardrail(Guardrail):
                 + harm_estimates_weights["quantile"]
             )
             if total_weight == 0:
-                raise ValueError("Sum of harm_estimates_weights cannot be zero.")
-            self.harm_estimates_weights = {
-                "max": harm_estimates_weights["max"] / total_weight,
-                "mean": harm_estimates_weights["mean"] / total_weight,
-                "quantile": harm_estimates_weights["quantile"] / total_weight,
-            }
+                self.harm_estimates_weights = {
+                    "max": 1.0,
+                    "mean": 0.0,
+                    "quantile": 0.0,
+                }
+            else:
+                self.harm_estimates_weights = {
+                    "max": harm_estimates_weights["max"] / total_weight,
+                    "mean": harm_estimates_weights["mean"] / total_weight,
+                    "quantile": harm_estimates_weights["quantile"] / total_weight,
+                }
         else:
             self.harm_estimates_weights = {
                 "max": 1.0,
