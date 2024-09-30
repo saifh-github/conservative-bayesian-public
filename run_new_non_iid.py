@@ -26,11 +26,11 @@ def custom_metric(reward_mean, deaths_mean):
 def main(cfg: DictConfig):
     # Calculate alphas based on d_arm
     if cfg.experiment.alphas == []:
-        P_i_star = 1 / (2 ** cfg.experiment.d_arm)
+        P_i_star = 1 / (2 ** cfg.environment.d_arm)
         delta = 0.1  # 1-delta = 90% probability for Prop. 4.6
         max_alpha = P_i_star * delta  # α ≤ δ * P(i*)
         cfg.experiment.alphas = [max_alpha * (0.1 ** i) for i in range(9)]  # log-spaced values
-    cfg.save_path = f"results/non_iid/{cfg.n_episodes}/results.pkl.gz"
+    cfg.save_path = f"results/non_iid/{cfg.experiment.n_episodes}/results.pkl.gz"
     wandb.init(project="conservative-bayesian-agent", config=cfg)
 
     t.set_default_device(t.device(cfg.device))
