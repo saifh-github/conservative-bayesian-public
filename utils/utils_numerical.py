@@ -119,5 +119,4 @@ def log_survival_function(x, loc, scale):
         torch.Tensor: Log survival function of the input tensor.
     """
     normalized_x = (x - loc) / scale
-    normalized_x = normalized_x
     return _log_ndtr(-normalized_x)
