@@ -49,7 +49,6 @@ def main(cfg: DictConfig):
     else:
         print("Running on CPU. Use --device='cuda' for GPU.")
 
-    # Initialize results dictionary
     results = {"cfg": cfg}
     results["args"] = {
         "n_episodes": cfg.experiment.n_episodes,
@@ -186,7 +185,6 @@ def main(cfg: DictConfig):
         new_non_iid_custom_scores = []
         for alpha in tqdm(cfg.experiment.alphas, desc="alpha"):
             for guardrail_name in ["non-iid", "new-non-iid"]:
-                # Initialize agent with new-non-iid guardrail
                 agent = agents.Boltzmann(
                     env=env_variable,
                     beta=cfg.environment.beta,
@@ -199,7 +197,7 @@ def main(cfg: DictConfig):
                 reward_mean, reward_error, deaths_mean, deaths_error, extras = (
                     guardrail_results
                 )
-                # Calculate custom metric
+                # Custom metric to maximize reward while minimizing deaths
                 custom_score = custom_metric(reward_mean, deaths_mean)
 
                 results[guardrail_name][alpha].append(
@@ -214,7 +212,6 @@ def main(cfg: DictConfig):
                     )
                 )
 
-                # Log metrics to WandB
                 wandb.log(
                     {
                         "guardrail": guardrail_name,
@@ -231,7 +228,6 @@ def main(cfg: DictConfig):
                 if guardrail_name == "new-non-iid":
                     new_non_iid_custom_scores.append(custom_score)
 
-                # Update live plot data
                 live_plot_data[threshold][guardrail_name]["reward"]["x"].append(
                     float(alpha)
                 )
@@ -250,8 +246,6 @@ def main(cfg: DictConfig):
                 live_plot_data[threshold][guardrail_name]["deaths"]["error"].append(
                     deaths_error
                 )
-
-            # Update live plot after each alpha
             update_live_plot(threshold)
 
     end_time = time.time()
@@ -331,7 +325,6 @@ def main(cfg: DictConfig):
         except Exception as e:
             print(f"Error generating plot {plot['filename']}: {str(e)}")
 
-    # Log the artifact to WandB
     wandb.log_artifact(artifact)
     print("All plots have been uploaded to WandB as artifacts. 🎉")
 
