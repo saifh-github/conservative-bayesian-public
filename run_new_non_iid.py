@@ -87,7 +87,7 @@ def main(cfg: DictConfig):
         ):
             agent = agents.Boltzmann(
                 env=env_variable,
-                beta=cfg.beta,
+                beta=cfg.environment.beta,
                 guardrail=guardrail,
                 threshold=threshold,
             )
@@ -124,7 +124,7 @@ def main(cfg: DictConfig):
                 # Initialize agent with new-non-iid guardrail
                 agent = agents.Boltzmann(
                     env=env_variable,
-                    beta=cfg.beta,
+                    beta=cfg.environment.beta,
                     alpha=alpha,
                     guardrail=guardrail_name,
                     threshold=threshold,
