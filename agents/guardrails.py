@@ -189,23 +189,37 @@ class NewNonIidGuardrail(Guardrail):
         # weights = selected_posteriors / selected_posteriors.sum()
         # harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
 
-        # # Harmonic mean
-        # selected_posteriors = posterior[m_alpha]
-        # harm_estimate = selected_posteriors.sum() / t.sum(selected_posteriors / p_harm_given_theory_m_alpha)
-
         # # Geometric mean
         # selected_posteriors = posterior[m_alpha]
         # weights = selected_posteriors / selected_posteriors.sum()
         # harm_estimate = t.exp(t.sum(weights * t.log(p_harm_given_theory_m_alpha)))
 
-        # Weighted Mean: Based on increases in posteriors
-        # Compute posterior-prior differences for selected theories
+        # # Harmonic mean
+        # selected_posteriors = posterior[m_alpha]
+        # harm_estimate = selected_posteriors.sum() / t.sum(selected_posteriors / p_harm_given_theory_m_alpha)
+
+        ############################
+        # Based on increases in posteriors
+        ############################
+        no_increase = False
         differences = t.clamp(posterior[m_alpha] - t.exp(self.agent.prior)[m_alpha], min=0)
         if t.all(differences == 0):
             # If all differences are zero, use the harm estimate of the top posterior
             harm_estimate = t.max(p_harm_given_theory_m_alpha[t.argmax(posterior[m_alpha])])
-        else:
+            no_increase = True
+
+        # # Weighted Mean: Based on increases in posteriors
+        # if not no_increase:
+        #     weights = differences / differences.sum()
+        #     harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
+
+        # Geometric Mean: Based on increases in posteriors
+        if not no_increase:
             weights = differences / differences.sum()
-            harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
+            harm_estimate = t.exp(t.sum(weights * t.log(p_harm_given_theory_m_alpha)))
+
+        # # Harmonic Mean: Based on increases in posteriors
+        # if not no_increase:
+        #     harm_estimate = differences.sum() / t.sum(differences / p_harm_given_theory_m_alpha)
 
         return harm_estimate
