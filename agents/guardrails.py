@@ -55,6 +55,19 @@ class Guardrail:
 
         return p_harm_given_theory
 
+    def log_p_harm_given_theory(self, action):
+        arm_features = self.agent.env.unwrapped.arm_features[action]
+        reward_means_given_theory = t.matmul(
+            self.agent.hypotheses.float().T, arm_features.float()
+        )
+
+        # Calculate log(1 - CDF) directly for numerical stability
+        log_p_harm_given_theory = t.distributions.Normal(
+            loc=reward_means_given_theory, scale=self.agent.env.unwrapped.sigma_r
+        ).log_survival_function(self.agent.env.unwrapped.explosion_threshold)
+
+        return log_p_harm_given_theory
+
     def p_harm_given_single_theory(self, theory, action):
         arm_features = self.agent.env.unwrapped.arm_features[action].float()
         mu_r = t.dot(theory, arm_features)
@@ -186,13 +199,11 @@ class NewNonIidGuardrail(Guardrail):
         
         # # Weighted mean
         # selected_posteriors = posterior[m_alpha]
-        # weights = selected_posteriors / selected_posteriors.sum()
-        # harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
+        # harm_estimate = t.dot(selected_posteriors, p_harm_given_theory_m_alpha) / selected_posteriors.sum()
 
         # # Geometric mean
         # selected_posteriors = posterior[m_alpha]
-        # weights = selected_posteriors / selected_posteriors.sum()
-        # harm_estimate = t.exp(t.dot(weights, t.log(p_harm_given_theory_m_alpha)))
+        # harm_estimate = t.exp(t.dot(selected_posteriors, t.log(p_harm_given_theory_m_alpha)) / selected_posteriors.sum())
 
         # # Harmonic mean
         # selected_posteriors = posterior[m_alpha]
@@ -214,7 +225,8 @@ class NewNonIidGuardrail(Guardrail):
 
         # Geometric Mean: Based on increases in posteriors
         if not no_increase:
-            harm_estimate = t.exp(t.dot(differences, t.log(p_harm_given_theory_m_alpha)) / differences.sum())
+            log_p_harm_given_theory_m_alpha = self.log_p_harm_given_theory(action)[m_alpha]
+            harm_estimate = t.exp(t.dot(differences, log_p_harm_given_theory_m_alpha) / differences.sum())
 
         # # Harmonic Mean: Based on increases in posteriors
         # if not no_increase:
