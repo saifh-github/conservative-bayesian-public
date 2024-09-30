@@ -192,7 +192,7 @@ class NewNonIidGuardrail(Guardrail):
         # # Geometric mean
         # selected_posteriors = posterior[m_alpha]
         # weights = selected_posteriors / selected_posteriors.sum()
-        # harm_estimate = t.exp(t.sum(weights * t.log(p_harm_given_theory_m_alpha)))
+        # harm_estimate = t.exp(t.dot(weights, t.log(p_harm_given_theory_m_alpha)))
 
         # # Harmonic mean
         # selected_posteriors = posterior[m_alpha]
@@ -210,13 +210,11 @@ class NewNonIidGuardrail(Guardrail):
 
         # # Weighted Mean: Based on increases in posteriors
         # if not no_increase:
-        #     weights = differences / differences.sum()
-        #     harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
+        #     harm_estimate = t.dot(differences, p_harm_given_theory_m_alpha) / differences.sum()
 
         # Geometric Mean: Based on increases in posteriors
         if not no_increase:
-            weights = differences / differences.sum()
-            harm_estimate = t.exp(t.sum(weights * t.log(p_harm_given_theory_m_alpha)))
+            harm_estimate = t.exp(t.dot(differences, t.log(p_harm_given_theory_m_alpha)) / differences.sum())
 
         # # Harmonic Mean: Based on increases in posteriors
         # if not no_increase:
