@@ -203,7 +203,8 @@ class NewNonIidGuardrail(Guardrail):
 
         # # Geometric mean
         # selected_posteriors = posterior[m_alpha]
-        # harm_estimate = t.exp(t.dot(selected_posteriors, t.log(p_harm_given_theory_m_alpha)) / selected_posteriors.sum())
+        # log_p_harm_given_theory_m_alpha = self.log_p_harm_given_theory(action)[m_alpha]
+        # harm_estimate = t.exp(t.dot(selected_posteriors, log_p_harm_given_theory_m_alpha) / selected_posteriors.sum())
 
         # # Harmonic mean
         # selected_posteriors = posterior[m_alpha]
@@ -214,7 +215,7 @@ class NewNonIidGuardrail(Guardrail):
         ############################
         no_increase = False
         differences = t.clamp(posterior[m_alpha] - t.exp(self.agent.log_prior)[m_alpha], min=0)
-        if t.all(differences == 0):
+        if t.allclose(differences, 0):
             # If all differences are zero, use the harm estimate of the top posterior
             harm_estimate = t.max(p_harm_given_theory_m_alpha[t.argmax(posterior[m_alpha])])
             no_increase = True
