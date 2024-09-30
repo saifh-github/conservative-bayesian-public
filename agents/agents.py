@@ -66,10 +66,10 @@ class Bayesian(Agent):
 
         # The agent is given the correct prior over the reward weights, which is the uniform over {0, ..., k-1}^d.
         # There are k^d possible reward weight vectors, which we index from 0 to k^d - 1.
-        prior = t.ones(self.k**self.d_arm) / (self.k**self.d_arm)
-        assert t.isclose(prior.sum(), t.tensor(1.0))
+        prior = t.ones(self.k**self.d_arm, dtype=t.float32) / (self.k**self.d_arm)
+        assert t.isclose(prior.sum(), t.tensor(1.0, dtype=t.float32))
         self.initial_log_prior = t.log(prior)
-        ranges = [t.arange(self.k) for _ in range(self.d_arm)]
+        ranges = [t.arange(self.k, dtype=t.float32) for _ in range(self.d_arm)]
         self.hypotheses = t.cartesian_prod(*ranges)
         self.log_prior = self.initial_log_prior.clone()
         self.log_posterior = self.initial_log_prior.clone()
@@ -208,15 +208,9 @@ class Boltzmann(Bayesian):
 
         features = self.env.unwrapped.arm_features
         posterior = t.exp(self.log_posterior)
-        posterior_mean = einops.einsum(
-            posterior,
-            self.hypotheses.to(t.float32),
-            "n_hypotheses, n_hypotheses d_arm  -> d_arm",
-        )
+        posterior_mean = t.mv(self.hypotheses.T, posterior) # n_hypotheses d_arm, n_hypotheses  -> d_arm
 
-        estimated_reward_means = einops.einsum(
-            features.to(t.float32), posterior_mean, "n_arm d_arm, d_arm -> n_arm"
-        )
+        estimated_reward_means = t.mv(features, posterior_mean) # n_arm d_arm, d_arm -> n_arm
         probs = t.softmax(self.beta * estimated_reward_means, dim=0)
         probs[self.actions_rejected_this_timestep] = (
             0  # so we don't choose an action that's already been rejected

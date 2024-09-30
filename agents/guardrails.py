@@ -36,18 +36,12 @@ class Guardrail:
 
         p_theory = t.exp(self.agent.log_posterior)
 
-        return einops.einsum(
-            p_theory, self.p_harm_given_theory(action), "n_hypotheses, n_hypotheses -> "
-        )
+        return t.dot(p_theory, self.p_harm_given_theory(action)) # n_hypotheses, n_hypotheses -> 
 
     def p_harm_given_theory(self, action):
 
         arm_features = self.agent.env.unwrapped.arm_features[action]
-        reward_means_given_theory = einops.einsum(
-            arm_features.float(),
-            self.agent.hypotheses.float(),
-            "d_arm, n_hypotheses d_arm -> n_hypotheses",
-        )
+        reward_means_given_theory = t.mv(self.agent.hypotheses, arm_features) # n_hypotheses d_arm, d_arm -> n_hypotheses
 
         p_harm_given_theory = 1 - t.distributions.Normal(
             loc=reward_means_given_theory, scale=self.agent.env.unwrapped.sigma_r
@@ -67,7 +61,7 @@ class Guardrail:
         return log_p_harm_given_theory
 
     def p_harm_given_single_theory(self, theory, action):
-        arm_features = self.agent.env.unwrapped.arm_features[action].float()
+        arm_features = self.agent.env.unwrapped.arm_features[action]
         mu_r = t.dot(theory, arm_features)
         p_harm_given_theory = 1 - t.distributions.Normal(
             loc=mu_r, scale=self.agent.env.unwrapped.sigma_r
