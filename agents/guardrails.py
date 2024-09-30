@@ -179,20 +179,29 @@ class NewNonIidGuardrail(Guardrail):
             m_alpha[max_indices[0]] = True
         m_alpha |= (posterior >= self.alpha)
 
-        # selected_posteriors = posterior[m_alpha]
         p_harm_given_theory_m_alpha = self.p_harm_given_theory(action)[m_alpha]
         
-        harm_estimate = t.max(p_harm_given_theory_m_alpha)
+        # # Default
+        # harm_estimate = t.max(p_harm_given_theory_m_alpha)
         
         # # Weighted mean
+        # selected_posteriors = posterior[m_alpha]
         # weights = selected_posteriors / selected_posteriors.sum()
         # harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
 
         # # Harmonic mean
+        # selected_posteriors = posterior[m_alpha]
         # harm_estimate = selected_posteriors.sum() / t.sum(selected_posteriors / p_harm_given_theory_m_alpha)
 
         # # Geometric mean
+        # selected_posteriors = posterior[m_alpha]
         # weights = selected_posteriors / selected_posteriors.sum()
         # harm_estimate = t.exp(t.sum(weights * t.log(p_harm_given_theory_m_alpha)))
+
+        # Weighted Mean: Based on increases in posteriors
+        # Compute posterior-prior differences for selected theories
+        differences = posterior[m_alpha] - t.exp(self.agent.prior)[m_alpha]
+        weights = differences / differences.sum()
+        harm_estimate = t.dot(weights, p_harm_given_theory_m_alpha)
 
         return harm_estimate

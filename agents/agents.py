@@ -68,13 +68,15 @@ class Bayesian(Agent):
         # There are k^d possible reward weight vectors, which we index from 0 to k^d - 1.
         prior = t.ones(self.k**self.d_arm) / (self.k**self.d_arm)
         assert t.isclose(prior.sum(), t.tensor(1.0))
-        self.log_prior = t.log(prior)
+        self.initial_log_prior = t.log(prior)
         ranges = [t.arange(self.k) for _ in range(self.d_arm)]
         self.hypotheses = t.cartesian_prod(*ranges)
-        self.log_posterior = self.log_prior.clone()
+        self.log_prior = self.initial_log_prior.clone()
+        self.log_posterior = self.initial_log_prior.clone()
 
     def reset(self):
-        self.log_posterior = self.log_prior.clone()
+        self.log_prior = self.initial_log_prior.clone()
+        self.log_posterior = self.initial_log_prior.clone()
 
     def update_beliefs(self, action, reward):
         features = self.env.unwrapped.arm_features[action]
@@ -84,12 +86,12 @@ class Bayesian(Agent):
             "n_hypotheses d_arm, d_arm -> n_hypotheses",
         )
 
-        log_prior = self.log_posterior
+        self.log_prior = self.log_posterior.clone()
         log_likelihoods = t.distributions.Normal(
             loc=hypothesised_reward_means, scale=self.env.unwrapped.sigma_r
         ).log_prob(t.tensor(reward))
 
-        unnormalised_log_posterior = log_prior + log_likelihoods
+        unnormalised_log_posterior = self.log_prior + log_likelihoods
         self.log_posterior = unnormalised_log_posterior - t.logsumexp(
             unnormalised_log_posterior, dim=0
         )  # normalise in logspace
@@ -254,7 +256,7 @@ class Uniform(Bayesian):
     ):
 
         self.reset()
-        assert t.all(self.log_posterior == self.log_prior)
+        assert t.all(self.log_posterior == self.initial_log_prior)
         self.env.reset()
         worst_action = t.argmax(self.env.unwrapped.reward_means)
         worst_harm_prob = self.cheating_guardrail.harm_estimate(worst_action)
