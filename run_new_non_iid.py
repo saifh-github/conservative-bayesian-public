@@ -76,43 +76,18 @@ def main(cfg: DictConfig):
 
     start_time = time.time()
 
-    live_plot_data = {threshold: {
-        guardrail: {'reward': {'x': [], 'y': [], 'error': []}, 'deaths': {'x': [], 'y': [], 'error': []}}
-        for guardrail in cfg.experiment.guardrail_baselines + ['non-iid', 'new-non-iid']
-    } for threshold in cfg.experiment.guardrail_thresholds}
-
     def update_live_plot(threshold, live_plot_data):
-        reward_data = {
-            guardrail: {
-                'x': live_plot_data[threshold][guardrail]['reward']['x'],
-                'y': live_plot_data[threshold][guardrail]['reward']['y'],
-                'error': live_plot_data[threshold][guardrail]['reward']['error']
-            } for guardrail in live_plot_data[threshold]
-        }
-        deaths_data = {
-            guardrail: {
-                'x': live_plot_data[threshold][guardrail]['deaths']['x'],
-                'y': live_plot_data[threshold][guardrail]['deaths']['y'],
-                'error': live_plot_data[threshold][guardrail]['deaths']['error']
-            } for guardrail in live_plot_data[threshold]
-        }
-
-        wandb.log({
-            f"reward_chart_threshold_{threshold}": wandb.plot.line_series(
-                xs=[data['x'] for data in reward_data.values()],
-                ys=[data['y'] for data in reward_data.values()],
-                keys=list(reward_data.keys()),
-                title=f"Reward vs Alpha (Threshold: {threshold})",
-                xname="Alpha"
-            ),
-            f"deaths_chart_threshold_{threshold}": wandb.plot.line_series(
-                xs=[data['x'] for data in deaths_data.values()],
-                ys=[data['y'] for data in deaths_data.values()],
-                keys=list(deaths_data.keys()),
-                title=f"Deaths vs Alpha (Threshold: {threshold})",
-                xname="Alpha"
-            )
-        })
+        for metric in ['reward', 'deaths']:
+            wandb.log({
+                f"{metric}_chart_threshold_{threshold}": wandb.plot.line_series(
+                    xs=[data[metric]['x'] for data in live_plot_data[threshold].values()],
+                    ys=[data[metric]['y'] for data in live_plot_data[threshold].values()],
+                    keys=list(live_plot_data[threshold].keys()),
+                    title=f"{metric.capitalize()} vs Alpha (Threshold: {threshold})",
+                    xname="Alpha",
+                    # yname=metric.capitalize()
+                )
+            })
 
     for threshold in tqdm(cfg.experiment.guardrail_thresholds, desc="guardrail threshold"):
         env_variable = utils.make_env(cfg.environment)
@@ -121,6 +96,11 @@ def main(cfg: DictConfig):
             env_variable.render()
         if cfg.print:
             print(f"Guardrail threshold = {threshold}")
+
+        live_plot_data = {threshold: {
+            guardrail: {'reward': {'x': [], 'y': []}, 'deaths': {'x': [], 'y': []}}
+            for guardrail in cfg.experiment.guardrail_baselines + ['non-iid', 'new-non-iid']
+        }}
 
         for guardrail in tqdm(cfg.experiment.guardrail_baselines, desc="guardrail"):
             agent = agents.Boltzmann(
@@ -134,13 +114,11 @@ def main(cfg: DictConfig):
             custom_score = custom_metric(reward_mean, deaths_mean)
             results[guardrail].append((threshold, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score))
             
-            # baseline results
+            # Update live_plot_data for baselines
             live_plot_data[threshold][guardrail]['reward']['x'] = [0, max(cfg.experiment.alphas)]
             live_plot_data[threshold][guardrail]['reward']['y'] = [reward_mean, reward_mean]
-            live_plot_data[threshold][guardrail]['reward']['error'] = [reward_error, reward_error]
             live_plot_data[threshold][guardrail]['deaths']['x'] = [0, max(cfg.experiment.alphas)]
             live_plot_data[threshold][guardrail]['deaths']['y'] = [deaths_mean, deaths_mean]
-            live_plot_data[threshold][guardrail]['deaths']['error'] = [deaths_error, deaths_error]
 
             wandb.log(
                 {
@@ -201,13 +179,13 @@ def main(cfg: DictConfig):
                 if guardrail_name == "new-non-iid":
                     new_non_iid_custom_scores.append(custom_score)
 
+                # Update live_plot_data
                 live_plot_data[threshold][guardrail_name]['reward']['x'].append(float(alpha))
                 live_plot_data[threshold][guardrail_name]['reward']['y'].append(reward_mean)
-                live_plot_data[threshold][guardrail_name]['reward']['error'].append(reward_error)
                 live_plot_data[threshold][guardrail_name]['deaths']['x'].append(float(alpha))
                 live_plot_data[threshold][guardrail_name]['deaths']['y'].append(deaths_mean)
-                live_plot_data[threshold][guardrail_name]['deaths']['error'].append(deaths_error)
 
+            # Update live plot after each alpha
             update_live_plot(threshold, live_plot_data)
 
     end_time = time.time()
