@@ -21,7 +21,6 @@ class ExplodingBandit(gym.Env):
             sigma_r  # The reward for an action is sampled from N(mu_r, sigma_r).
         )
         self.exploding = exploding
-        # self.exploding_frac = exploding_frac
         self.explosion_threshold = self.set_explosion_threshold()
         self.reset()
 
@@ -69,13 +68,6 @@ class ExplodingBandit(gym.Env):
         )
         self.total_reward = 0
 
-        # if self.exploding_frac > 0.0:
-        #     sorted_reward_means = t.sort(self.reward_means).values
-        #     threshold_pos = int(np.ceil(self.n_arm * self.exploding_frac))
-        #     self.explosion_threshold = sorted_reward_means[-threshold_pos]
-        # else:
-        #     self.explosion_threshold = 9999
-        # return 0, {}
 
     def render(self):
         """
