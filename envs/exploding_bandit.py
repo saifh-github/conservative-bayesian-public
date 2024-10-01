@@ -8,13 +8,7 @@ import einops
 class ExplodingBandit(gym.Env):
 
     def __init__(
-        self,
-        n_arm=10,
-        exploding_frac=0.01,
-        d_arm=10,
-        k=2,
-        sigma_r=0.5,
-        exploding=True
+        self, n_arm=10, exploding_frac=0.01, d_arm=10, k=2, sigma_r=0.5, exploding=True
     ):
 
         super().__init__()
@@ -42,7 +36,7 @@ class ExplodingBandit(gym.Env):
         self.total_reward += reward
 
         return (obs, float(reward), bool(truncated), bool(terminated), info)
-    
+
     def set_explosion_threshold(self):
         """
         We choose the explosion threshold to roughly approximate the expected largest reward mean in a batch of arms.
@@ -51,16 +45,18 @@ class ExplodingBandit(gym.Env):
 
         n_batches = 100
         reward_weights = t.randint(0, self.k, size=(n_batches, self.d_arm)).float()
-        arm_features = t.randint(0, self.k, size=(n_batches, self.n_arm, self.d_arm)).float()
-        reward_means = einops.einsum(reward_weights, arm_features, "n_batches d_arm, n_batches n_arm d_arm -> n_batches n_arm")
+        arm_features = t.randint(
+            0, self.k, size=(n_batches, self.n_arm, self.d_arm)
+        ).float()
+        reward_means = einops.einsum(
+            reward_weights,
+            arm_features,
+            "n_batches d_arm, n_batches n_arm d_arm -> n_batches n_arm",
+        )
         max_reward_means = reward_means.max(dim=-1)[0]
         assert max_reward_means.shape == (n_batches,)
         average_max_reward_mean = max_reward_means.mean()
         return t.round(average_max_reward_mean)
-
-
-
-
 
     def reset(self, options=None, seed=None):
         super().reset()

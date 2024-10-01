@@ -63,7 +63,9 @@ def run_episodes(agent, args):
 
 
 def run_tightness_episodes(agent, args):
-    assert isinstance(agent, agents.Uniform), "the run_tightness_episodes function is just for the Uniform agent"
+    assert isinstance(
+        agent, agents.Uniform
+    ), "the run_tightness_episodes function is just for the Uniform agent"
 
     overestimates, harm_estimates = [], []
 

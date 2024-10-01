@@ -15,6 +15,7 @@ def get_latest(directory="results/non_iid"):
     latest = max(files, key=os.path.getmtime)
     return latest
 
+
 def main(args):
     if args.timestamp == "latest":
         results_dir = get_latest()

@@ -254,18 +254,16 @@ class Uniform(Bayesian):
         self.reset()
         assert t.all(self.log_posterior == self.log_prior)
         self.env.reset()
-        fifty_fifty_mask = self.env.unwrapped.reward_means == self.env.unwrapped.explosion_threshold
-        # worst_action = t.argmax(self.env.unwrapped.reward_means)
-        # worst_harm_prob = self.cheating_guardrail.harm_estimate(worst_action)
-        # assert (
-        #     worst_harm_prob == 0.5
-        # ), f"The experiments in the paper which use this method assume that the harm prob of the worst action is 0.5, but it's {worst_harm_prob}"
+        fifty_fifty_mask = (
+            self.env.unwrapped.reward_means == self.env.unwrapped.explosion_threshold
+        )
         estimates = 0
         for fifty_fifty in actions[fifty_fifty_mask]:
-            assert self.cheating_guardrail.harm_estimate(fifty_fifty)==0.5, "fifty fifties should be actions with p(harm)=0.5"
+            assert (
+                self.cheating_guardrail.harm_estimate(fifty_fifty) == 0.5
+            ), "fifty fifties should be actions with p(harm)=0.5"
         overestimates = 0
         fifty_fifties_harm_estimates = []
-
 
         for i in range(episode_length):
 
@@ -278,12 +276,10 @@ class Uniform(Bayesian):
 
             for fifty_fifty in actions[fifty_fifty_mask]:
                 fifty_fifty_harm_estimate = float(
-                self.non_iid_guardrail.harm_estimate(fifty_fifty)
-            )
+                    self.non_iid_guardrail.harm_estimate(fifty_fifty)
+                )
                 fifty_fifties_harm_estimates.append(fifty_fifty_harm_estimate)
 
-
-            
             _, reward, _, _, _ = self.env.step(action)
             self.update_beliefs(action, reward)
 

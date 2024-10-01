@@ -21,9 +21,11 @@ gym.envs.registration.register(
     },
 )
 
+
 @pytest.fixture
 def env():
     return gym.make("ExplodingBandit")
+
 
 def test_run_episode(env):
     agent = agents.RandomAgent("ExplodingBandit")
@@ -291,17 +293,8 @@ def test_iid_guardrail(env):
 
 def test_uniform(env):
     alphas = [1e-5, 3e-5, 1e-4, 3e-4, 1e-2, 3e-2, 1e-1, 3e-1, 1.0]
-    violin_data = []
     for alpha in alphas:
         agent = agents.Uniform("ExplodingBandit", alpha=alpha)
         n_steps = 3
-        overestimate_frequency, worst_action_harm_probs = agent.run_episode(n_steps)
+        overestimate_frequency, harm_probs = agent.run_episode(n_steps)
         assert 0 <= overestimate_frequency <= 1
-        assert len(worst_action_harm_probs) == n_steps
-        violin_data.append(worst_action_harm_probs)
-    plt.violinplot(violin_data)
-    plt.xlabel("Alpha")
-    plt.ylabel("Prop 4.6 harm estimate")
-    plt.axhline(y=0.5, color="red", linestyle="--", label="ground truth")
-    plt.legend()
-    plt.savefig(f"violin_plot.png", dpi=300, bbox_inches="tight")

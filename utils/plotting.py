@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import torch as t
 import numpy as np
+
+
 def plot_deaths_and_reward_vs_alpha_2x3(
     results, plot_error_bars=True, save_path=None, save_format="pdf"
 ):
@@ -71,7 +73,9 @@ def plot_deaths_and_reward_vs_alpha_2x3(
 
             ax.set_xlabel("Alpha", fontsize=18)
             ax.set_ylabel("Reward" if metric == "reward" else "Deaths", fontsize=18)
-            ax.set_title(f"{metric.capitalize()} vs Alpha (C = {threshold})", fontsize=18)
+            ax.set_title(
+                f"{metric.capitalize()} vs Alpha (C = {threshold})", fontsize=18
+            )
             ax.legend(fontsize=12)
 
             # Remove gridlines
@@ -186,7 +190,7 @@ def plot_overestimation(
     alphas = args.alphas
     overestimates = results["overestimates"]
     overestimate_error = results["overestimate error"]
-    p = 1 / (args.d_arm**args.k)
+    p = 1 / (args.k**args.d_arm)
     theoretical_lower_bound = [1 - (alpha / p) for alpha in alphas]
     theoretical_lower_bound = [max(0, i) for i in theoretical_lower_bound]
 
