@@ -78,14 +78,38 @@ def main(cfg: DictConfig):
 
     def update_live_plot(threshold, live_plot_data):
         for metric in ['reward', 'deaths']:
+            # Prepare data for wandb.Table
+            data = []
+            for guardrail_name, data_dict in live_plot_data[threshold].items():
+                x_values = data_dict[metric]['x']
+                y_values = data_dict[metric]['y']
+                for x, y in zip(x_values, y_values):
+                    data.append([x, y, guardrail_name])
+            # Create a wandb.Table
+            table = wandb.Table(data=data, columns=["Alpha", metric.capitalize(), "Guardrail"])
+            # Log the table
+            wandb.log({f"{metric}_data_threshold_{threshold}": table})
+
+            # Define a Vega-Lite specification for the custom chart
+            vega_spec = {
+                "$schema": "https://vega.github.io/schema/vega-lite/v4.json",
+                "description": f"{metric.capitalize()} vs Alpha (Threshold: {threshold})",
+                "mark": "line",
+                "encoding": {
+                    "x": {"field": "Alpha", "type": "quantitative", "title": "Alpha"},
+                    "y": {"field": metric.capitalize(), "type": "quantitative", "title": metric.capitalize()},
+                    "color": {"field": "Guardrail", "type": "nominal", "title": "Guardrail"}
+                },
+                "data": {"name": "wandb"},
+                "title": f"{metric.capitalize()} vs Alpha (Threshold: {threshold})"
+            }
+
+            # Log the custom chart using wandb.plot_table
             wandb.log({
-                f"{metric}_chart_threshold_{threshold}": wandb.plot.line_series(
-                    xs=[data[metric]['x'] for data in live_plot_data[threshold].values()],
-                    ys=[data[metric]['y'] for data in live_plot_data[threshold].values()],
-                    keys=list(live_plot_data[threshold].keys()),
-                    title=f"{metric.capitalize()} vs Alpha (Threshold: {threshold})",
-                    xname="Alpha",
-                    # yname=metric.capitalize()
+                f"{metric}_chart_threshold_{threshold}": wandb.plot_table(
+                    vega_spec_name=None,
+                    data_table=table,
+                    vega_spec=vega_spec
                 )
             })
 
