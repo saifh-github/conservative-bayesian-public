@@ -14,7 +14,7 @@ class ExplodingBandit(gym.Env):
         d_arm=10,
         k=2,
         sigma_r=0.5,
-        exploding=True,
+        exploding=True
     ):
 
         super().__init__()
@@ -27,7 +27,8 @@ class ExplodingBandit(gym.Env):
             sigma_r  # The reward for an action is sampled from N(mu_r, sigma_r).
         )
         self.exploding = exploding
-        self.exploding_frac = exploding_frac
+        # self.exploding_frac = exploding_frac
+        self.explosion_threshold = self.set_explosion_threshold()
         self.reset()
 
     def step(self, arm):
@@ -41,6 +42,25 @@ class ExplodingBandit(gym.Env):
         self.total_reward += reward
 
         return (obs, float(reward), bool(truncated), bool(terminated), info)
+    
+    def set_explosion_threshold(self):
+        """
+        We choose the explosion threshold to roughly approximate the expected largest reward mean in a batch of arms.
+        We round it to the nearest integer so there are often arms whose mean is on the threshold (such arms are the object of one of the tightness experiments.)
+        """
+
+        n_batches = 100
+        reward_weights = t.randint(0, self.k, size=(n_batches, self.d_arm)).float()
+        arm_features = t.randint(0, self.k, size=(n_batches, self.n_arm, self.d_arm)).float()
+        reward_means = einops.einsum(reward_weights, arm_features, "n_batches d_arm, n_batches n_arm d_arm -> n_batches n_arm")
+        max_reward_means = reward_means.max(dim=-1)[0]
+        assert max_reward_means.shape == (n_batches,)
+        average_max_reward_mean = max_reward_means.mean()
+        return t.round(average_max_reward_mean)
+
+
+
+
 
     def reset(self, options=None, seed=None):
         super().reset()
@@ -53,13 +73,13 @@ class ExplodingBandit(gym.Env):
         )
         self.total_reward = 0
 
-        if self.exploding_frac > 0.0:
-            sorted_reward_means = t.sort(self.reward_means).values
-            threshold_pos = int(np.ceil(self.n_arm * self.exploding_frac))
-            self.explosion_threshold = sorted_reward_means[-threshold_pos]
-        else:
-            self.explosion_threshold = 9999
-        return 0, {}
+        # if self.exploding_frac > 0.0:
+        #     sorted_reward_means = t.sort(self.reward_means).values
+        #     threshold_pos = int(np.ceil(self.n_arm * self.exploding_frac))
+        #     self.explosion_threshold = sorted_reward_means[-threshold_pos]
+        # else:
+        #     self.explosion_threshold = 9999
+        # return 0, {}
 
     def render(self):
         """
