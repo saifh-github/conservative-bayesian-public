@@ -78,9 +78,9 @@ def main(cfg: DictConfig):
     start_time = time.time()
 
 
-    def update_live_plot(threshold, results, baseline_data, processed_alphas):
+    def update_live_wandb_table(threshold, results, baseline_data, processed_alphas):
         # Start with the cached baseline data
-        data = baseline_data.copy()
+        data = baseline_data
 
         # Collect data for processed alphas
         for guardrail_name in ["non-iid", "new-non-iid"]:
@@ -97,6 +97,7 @@ def main(cfg: DictConfig):
                                 'Deaths': deaths_mean,
                                 'Reward_Error': reward_error,
                                 'Deaths_Error': deaths_error,
+                                'Custom_Score': custom_score,
                                 'Guardrail': guardrail_name,
                                 'Threshold': threshold,
                                 'Is_Baseline': False
@@ -140,7 +141,7 @@ def main(cfg: DictConfig):
             env_variable.reset()
             env_variable.render()
         if cfg.print:
-            print(f"Guardrail threshold = {threshold}")
+            print(f"\nGuardrail threshold = {threshold}")
 
         # Process baselines once per threshold
         baseline_data = []
@@ -172,6 +173,7 @@ def main(cfg: DictConfig):
                 'Deaths': deaths_mean,
                 'Reward_Error': reward_error,
                 'Deaths_Error': deaths_error,
+                'Custom_Score': custom_score,
                 'Guardrail': guardrail,
                 'Threshold': threshold,
                 'Is_Baseline': True
@@ -179,15 +181,11 @@ def main(cfg: DictConfig):
 
             wandb.log(
                 {
-                    "guardrail": guardrail,
-                    "threshold": threshold,
-                    "reward_mean": reward_mean,
-                    "reward_error": reward_error,
-                    "deaths_mean": deaths_mean,
-                    "deaths_error": deaths_error,
-                    "custom_score": custom_score,
-                    f"reward_mean_threshold_{threshold}": reward_mean,
-                    f"deaths_mean_threshold_{threshold}": deaths_mean,
+                    f"{guardrail}_reward_mean_threshold_{threshold}": reward_mean,
+                    f"{guardrail}_reward_error_threshold_{threshold}": reward_error,
+                    f"{guardrail}_deaths_mean_threshold_{threshold}": deaths_mean,
+                    f"{guardrail}_deaths_error_threshold_{threshold}": deaths_error,
+                    f"{guardrail}_custom_score_threshold_{threshold}": custom_score,
                 }
             )
 
@@ -222,23 +220,33 @@ def main(cfg: DictConfig):
                     )
                 )
 
-                wandb.log(
-                    {
-                        "guardrail": guardrail_name,
-                        "threshold": threshold,
-                        "alpha": alpha,
-                        "reward_mean": reward_mean,
-                        "reward_error": reward_error,
-                        "deaths_mean": deaths_mean,
-                        "deaths_error": deaths_error,
-                        "custom_score": custom_score,
-                    }
-                )
+                wandb_log_dict = {
+                    "alpha": alpha,
+                    f"{guardrail_name}_reward_mean_threshold_{threshold}": reward_mean,
+                    f"{guardrail_name}_reward_error_threshold_{threshold}": reward_error,
+                    f"{guardrail_name}_deaths_mean_threshold_{threshold}": deaths_mean,
+                    f"{guardrail_name}_deaths_error_threshold_{threshold}": deaths_error,
+                    f"{guardrail_name}_custom_score_threshold_{threshold}": custom_score,
+                }
+
+                # add all the baseline guardrails to wandb_log_dict
+                for baseline in cfg.experiment.guardrail_baselines:
+                    if baseline in results:
+                        if results[baseline]:
+                            baseline_data = results[baseline][0]
+                            wandb_log_dict[f"{baseline}_reward_mean_threshold_{threshold}"] = baseline_data[1]
+                            wandb_log_dict[f"{baseline}_reward_error_threshold_{threshold}"] = baseline_data[2]
+                            wandb_log_dict[f"{baseline}_deaths_mean_threshold_{threshold}"] = baseline_data[3]
+                            wandb_log_dict[f"{baseline}_deaths_error_threshold_{threshold}"] = baseline_data[4]
+                            wandb_log_dict[f"{baseline}_custom_score_threshold_{threshold}"] = baseline_data[6]
+                wandb.log(wandb_log_dict)
                 if guardrail_name == "new-non-iid":
                     new_non_iid_custom_scores.append(custom_score)
 
             processed_alphas.add(alpha)
-            update_live_plot(threshold, results, baseline_data, processed_alphas)
+            update_live_wandb_table(threshold, results, baseline_data, processed_alphas)
+        plt_fig = plotting.fig_deaths_reward_custom_metric_vs_alpha_at_threshold(results, threshold)
+        wandb.log({f"plot_deaths_reward_custom_metric_vs_alpha_at_threshold_{threshold}": wandb.Image(plt_fig)})
 
     end_time = time.time()
     # Average custom metric for new-non-iid: the metric we want to maximize
@@ -272,54 +280,37 @@ def main(cfg: DictConfig):
     results_artifact.add_file(save_path)
     wandb.log_artifact(results_artifact)
 
-    # Generate and log matplotlib plots as artifacts on WandB
-    artifact = wandb.Artifact("plots", type="experiment_plots")
-
+    # Generate and log matplotlib plots on WandB
     print(
         f"Results saved locally to {save_path} 📁 and uploaded to W&B as an artifact. ✅"
     )
 
     plot_definitions = [
         {
-            "filename": "deaths_and_rewards_vs_alpha.png",
-            "function": plotting.plot_deaths_and_reward_vs_alpha,
-            "kwargs": {
-                "plot_error_bars": False,
-                "save_path": os.path.join(
-                    os.path.dirname(save_path), "deaths_and_rewards_vs_alpha.png"
-                ),
-                "save_format": "png",
-            },
-        },
-        {
-            "filename": "deaths_and_rewards_vs_alpha_error.png",
+            "name": "plot_deaths_and_reward_vs_alpha",
             "function": plotting.plot_deaths_and_reward_vs_alpha,
             "kwargs": {
                 "plot_error_bars": True,
-                "save_path": os.path.join(
-                    os.path.dirname(save_path), "deaths_and_rewards_vs_alpha_error.png"
-                ),
-                "save_format": "png",
+                "return_fig": True,
+                "include_custom_metric": True,
+            },
+        },
+        {
+            "name": "plot_deaths_and_reward_vs_alpha_error",
+            "function": plotting.plot_deaths_and_reward_vs_alpha,
+            "kwargs": {
+                "plot_error_bars": False,
+                "return_fig": True,
+                "include_custom_metric": True,
             },
         },
     ]
 
     for plot in plot_definitions:
-        try:
-            plot["function"](results, **plot["kwargs"])
-            if os.path.exists(plot["kwargs"]["save_path"]):
-                artifact.add_file(plot["kwargs"]["save_path"])
-                print(
-                    f"Plot saved to {plot['kwargs']['save_path']} and added to artifact."
-                )
-            else:
-                print(f"Warning: Plot file not found at {plot['kwargs']['save_path']}")
-        except Exception as e:
-            print(f"Error generating plot {plot['filename']}: {str(e)}")
-
-    wandb.log_artifact(artifact)
-    print("All plots have been uploaded to WandB as artifacts. 🎉")
-
+        fig = plot["function"](results, **plot["kwargs"])
+        if fig:
+            wandb.log({f"{plot['name']}": wandb.Image(fig)})
+            print(f"Uploaded {plot['name']} to WandB. 🎉")
 
 if __name__ == "__main__":
     main()
