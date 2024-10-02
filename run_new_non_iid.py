@@ -179,15 +179,15 @@ def main(cfg: DictConfig):
                 'Is_Baseline': True
             })
 
-            wandb.log(
-                {
-                    f"{guardrail}_reward_mean_threshold_{threshold}": reward_mean,
-                    f"{guardrail}_reward_error_threshold_{threshold}": reward_error,
-                    f"{guardrail}_deaths_mean_threshold_{threshold}": deaths_mean,
-                    f"{guardrail}_deaths_error_threshold_{threshold}": deaths_error,
-                    f"{guardrail}_custom_score_threshold_{threshold}": custom_score,
-                }
-            )
+            # wandb.log(
+            #     {
+            #         f"{guardrail}_reward_mean_threshold_{threshold}": reward_mean,
+            #         f"{guardrail}_reward_error_threshold_{threshold}": reward_error,
+            #         f"{guardrail}_deaths_mean_threshold_{threshold}": deaths_mean,
+            #         f"{guardrail}_deaths_error_threshold_{threshold}": deaths_error,
+            #         f"{guardrail}_custom_score_threshold_{threshold}": custom_score,
+            #     }
+            # )
 
         processed_alphas = set()
         new_non_iid_custom_scores = []
@@ -230,15 +230,15 @@ def main(cfg: DictConfig):
                 }
 
                 # add all the baseline guardrails to wandb_log_dict
-                for baseline in cfg.experiment.guardrail_baselines:
-                    if baseline in results:
-                        if results[baseline]:
-                            baseline_data = results[baseline][0]
-                            wandb_log_dict[f"{baseline}_reward_mean_threshold_{threshold}"] = baseline_data[1]
-                            wandb_log_dict[f"{baseline}_reward_error_threshold_{threshold}"] = baseline_data[2]
-                            wandb_log_dict[f"{baseline}_deaths_mean_threshold_{threshold}"] = baseline_data[3]
-                            wandb_log_dict[f"{baseline}_deaths_error_threshold_{threshold}"] = baseline_data[4]
-                            wandb_log_dict[f"{baseline}_custom_score_threshold_{threshold}"] = baseline_data[6]
+                for guardrail_baseline in cfg.experiment.guardrail_baselines:
+                    if guardrail_baseline in results:
+                        if results[guardrail_baseline]:
+                            guardrail_baseline_data = results[guardrail_baseline][0]
+                            wandb_log_dict[f"{guardrail_baseline}_reward_mean_threshold_{threshold}"] = guardrail_baseline_data[1]
+                            wandb_log_dict[f"{guardrail_baseline}_reward_error_threshold_{threshold}"] = guardrail_baseline_data[2]
+                            wandb_log_dict[f"{guardrail_baseline}_deaths_mean_threshold_{threshold}"] = guardrail_baseline_data[3]
+                            wandb_log_dict[f"{guardrail_baseline}_deaths_error_threshold_{threshold}"] = guardrail_baseline_data[4]
+                            wandb_log_dict[f"{guardrail_baseline}_custom_score_threshold_{threshold}"] = guardrail_baseline_data[6]
                 wandb.log(wandb_log_dict)
                 if guardrail_name == "new-non-iid":
                     new_non_iid_custom_scores.append(custom_score)
