@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
 import torch as t
 import numpy as np
+import textwrap
 
 
 def plot_deaths_and_reward_vs_alpha(
-    results, plot_error_bars=True, save_path=None, save_format="pdf", return_fig=False, include_custom_metric=False
+    results, plot_error_bars=True, save_path=None, save_format="pdf", return_fig=False, include_custom_metric=False, print_hyperparams_string=False
 ):
     n_plots = len(results["posterior"])
     guardrails_excluding_non_iid = ["iid", "posterior", "cheating"]
@@ -115,6 +116,11 @@ def plot_deaths_and_reward_vs_alpha(
             ax.set_xticklabels([format_to_1sf(alpha, None) for alpha in alphas])
             plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
 
+    # print the hyperparameters string
+    if print_hyperparams_string:
+        fig.suptitle(f"Hyperparameters:\n{textwrap.fill(results['hyperparams_string'], 100)}", fontsize=10)
+        fig.subplots_adjust(top=0.90)
+
     plt.tight_layout()
 
     if return_fig:
@@ -127,7 +133,7 @@ def plot_deaths_and_reward_vs_alpha(
 
 
 def fig_deaths_reward_custom_metric_vs_alpha_at_threshold(
-    results, guardrail_threshold, plot_error_bars=True
+    results, guardrail_threshold, plot_error_bars=True, print_hyperparams_string=True
 ):
     n_plots = len(results["posterior"])
     guardrails_excluding_non_iid = ["iid", "posterior", "cheating"]
@@ -229,6 +235,10 @@ def fig_deaths_reward_custom_metric_vs_alpha_at_threshold(
         ax.set_xticks(range(len(alphas)))
         ax.set_xticklabels([format_to_1sf(alpha, None) for alpha in alphas])
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+    if print_hyperparams_string:
+        fig.suptitle(f"Hyperparameters:\n{textwrap.fill(results['hyperparams_string'], 100)}", fontsize=10)
+        fig.subplots_adjust(top=0.85)
 
     plt.tight_layout()
 

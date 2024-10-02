@@ -24,6 +24,45 @@ def custom_metric(reward_mean, deaths_mean):
     # Prioritize minimizing deaths over maximizing reward
     return reward_mean / (1 + deaths_mean**2)
 
+def string_repr_current_hyperparams(cfg):
+    params = []
+    
+    # Harm estimates
+    harm_estimates = []
+    weights = cfg.guardrail_new_non_iid.harm_estimates_weights
+    if weights.max != 0:
+        harm_estimates.append("max")
+    if weights.mean != 0:
+        harm_estimates.append("mean")
+    if weights.quantile != 0:
+        harm_estimates.append("quantile")
+    
+    if harm_estimates:
+        params.append(f"harm_estimates: {', '.join(harm_estimates)}")
+    
+    # Mean-related parameters
+    if weights.mean != 0:
+        mean_params = [f"{cfg.guardrail_new_non_iid.mean_type}"]
+        if cfg.guardrail_new_non_iid.posterior_increases:
+            mean_params.append(" over posterior increases")
+        else:
+            mean_params.append(" over posterior")
+        
+        if cfg.guardrail_new_non_iid.softmax_temperature != 1:
+            mean_params.append(f"temp = {cfg.guardrail_new_non_iid.softmax_temperature}")
+        
+        if cfg.guardrail_new_non_iid.power_mean_exponent != 1:
+            mean_params.append(f"power = {cfg.guardrail_new_non_iid.power_mean_exponent}")
+        
+        params.append(f"mean: {', '.join(mean_params)}")
+    
+    # Quantile parameter
+    if weights.quantile != 0:
+        quantile_percentage = int(cfg.guardrail_new_non_iid.quantile * 100)
+        params.append(f"quantile: {quantile_percentage}%")
+    
+    # Join all parameters with newlines
+    return '\n'.join(params)
 
 @hydra.main(version_base=None, config_path="./configs", config_name="config")
 def main(cfg: DictConfig):
@@ -39,6 +78,8 @@ def main(cfg: DictConfig):
 
     wandb_config = dict(cfg)
     wandb.init(project="conservative-bayesian-agent", config=wandb_config)
+    hyperparams_string = string_repr_current_hyperparams(cfg)
+    wandb.log({"hyperparams_string": hyperparams_string})
 
     t.set_default_device(t.device(cfg.device))
     t.set_grad_enabled(False)
@@ -50,7 +91,7 @@ def main(cfg: DictConfig):
     else:
         print("Running on CPU. Use --device='cuda' for GPU.")
 
-    results = {"cfg": cfg}
+    results = {"cfg": cfg, "hyperparams_string": hyperparams_string}
     results["args"] = {
         "n_episodes": cfg.experiment.n_episodes,
         "episode_length": cfg.experiment.episode_length,
@@ -245,7 +286,7 @@ def main(cfg: DictConfig):
 
             processed_alphas.add(alpha)
             update_live_wandb_table(threshold, results, baseline_data, processed_alphas)
-        plt_fig = plotting.fig_deaths_reward_custom_metric_vs_alpha_at_threshold(results, threshold)
+        plt_fig = plotting.fig_deaths_reward_custom_metric_vs_alpha_at_threshold(results, threshold, print_hyperparams_string=True)
         wandb.log({f"plot_deaths_reward_custom_metric_vs_alpha_at_threshold_{threshold}": wandb.Image(plt_fig)})
 
     end_time = time.time()
@@ -293,6 +334,7 @@ def main(cfg: DictConfig):
                 "plot_error_bars": True,
                 "return_fig": True,
                 "include_custom_metric": True,
+                "print_hyperparams_string": True,
             },
         },
         {
@@ -302,6 +344,7 @@ def main(cfg: DictConfig):
                 "plot_error_bars": False,
                 "return_fig": True,
                 "include_custom_metric": True,
+                "print_hyperparams_string": True,
             },
         },
     ]
