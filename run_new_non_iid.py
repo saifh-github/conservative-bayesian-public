@@ -25,9 +25,6 @@ def custom_metric(reward_mean, deaths_mean):
     return reward_mean / (1 + deaths_mean**2)
 
 def string_repr_current_hyperparams(cfg):
-    params = []
-    
-    # Harm estimates
     harm_estimates = []
     weights = cfg.guardrail_new_non_iid.harm_estimates_weights
     if weights.max != 0:
@@ -36,33 +33,36 @@ def string_repr_current_hyperparams(cfg):
         harm_estimates.append("mean")
     if weights.quantile != 0:
         harm_estimates.append("quantile")
+    # default is max
+    if not harm_estimates:
+        harm_estimates = ["max"]
     
-    if harm_estimates:
-        params.append(f"harm_estimates: {', '.join(harm_estimates)}")
-    
-    # Mean-related parameters
-    if weights.mean != 0:
-        mean_params = [f"{cfg.guardrail_new_non_iid.mean_type}"]
-        if cfg.guardrail_new_non_iid.posterior_increases:
-            mean_params.append(" over posterior increases")
-        else:
-            mean_params.append(" over posterior")
+    params = []
+    for harm_estimate in harm_estimates:
+        if harm_estimate == "max":
+            params.append("max")
         
-        if cfg.guardrail_new_non_iid.softmax_temperature != 1:
-            mean_params.append(f"temp = {cfg.guardrail_new_non_iid.softmax_temperature}")
+        elif harm_estimate == "mean":
+            mean_name = cfg.guardrail_new_non_iid.mean_type
+            if cfg.guardrail_new_non_iid.posterior_increases:
+                mean_name += " (posterior increases)"
+            else:
+                mean_name += " (posterior)"
+            mean_params = [f"{mean_name}"]
+            
+            if cfg.guardrail_new_non_iid.softmax_temperature != 1:
+                mean_params.append(f"temp={cfg.guardrail_new_non_iid.softmax_temperature}")
+            
+            if cfg.guardrail_new_non_iid.power_mean_exponent != 1:
+                mean_params.append(f"pow={cfg.guardrail_new_non_iid.power_mean_exponent}")
+            
+            params.append(f"mean: {', '.join(mean_params)}")
         
-        if cfg.guardrail_new_non_iid.power_mean_exponent != 1:
-            mean_params.append(f"power = {cfg.guardrail_new_non_iid.power_mean_exponent}")
-        
-        params.append(f"mean: {', '.join(mean_params)}")
+        elif harm_estimate == "quantile":
+            quantile_percentage = int(cfg.guardrail_new_non_iid.quantile * 100)
+            params.append(f"quantile: {quantile_percentage}%")
     
-    # Quantile parameter
-    if weights.quantile != 0:
-        quantile_percentage = int(cfg.guardrail_new_non_iid.quantile * 100)
-        params.append(f"quantile: {quantile_percentage}%")
-    
-    # Join all parameters with newlines
-    return '\n'.join(params)
+    return 'harm estimates:: ' + ' | '.join(params)
 
 @hydra.main(version_base=None, config_path="./configs", config_name="config")
 def main(cfg: DictConfig):
