@@ -91,7 +91,7 @@ def print_results_table(results):
                 format_mean_error(deaths_mean, deaths_error),
                 format_mean_error(extras["timesteps_mean"], extras["timesteps_error"]),
                 format_mean_error(extras["rejections_mean"], extras["rejections_error"]),
-                custom_score,
+                f"{custom_score:.2f}" if isinstance(custom_score, float) else custom_score,
             ]
             rows.append(row)
 
