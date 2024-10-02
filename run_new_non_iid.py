@@ -158,6 +158,7 @@ def main(cfg: DictConfig):
     wandb.init(project="conservative-bayesian-agent", config=wandb_config)
     hyperparams_string = string_repr_current_hyperparams(cfg)
     wandb.log({"hyperparams_string": hyperparams_string})
+    wandb.log({"hyperparams_short": hyperparams_string.replace("harm estimates:: ", "")})
 
     t.set_default_device(t.device(cfg.device))
     t.set_grad_enabled(False)
