@@ -263,11 +263,11 @@ def main(cfg: DictConfig):
 
                 wandb_log_dict = {
                     "alpha": alpha,
-                    f"{guardrail_name}_reward_mean_threshold_{threshold}": reward_mean,
-                    f"{guardrail_name}_reward_error_threshold_{threshold}": reward_error,
-                    f"{guardrail_name}_deaths_mean_threshold_{threshold}": deaths_mean,
-                    f"{guardrail_name}_deaths_error_threshold_{threshold}": deaths_error,
-                    f"{guardrail_name}_custom_score_threshold_{threshold}": custom_score,
+                    f"reward/mean/{guardrail_name}_threshold_{threshold}": reward_mean,
+                    f"reward/error/{guardrail_name}_threshold_{threshold}": reward_error,
+                    f"deaths/mean/{guardrail_name}_threshold_{threshold}": deaths_mean,
+                    f"deaths/error/{guardrail_name}_threshold_{threshold}": deaths_error,
+                    f"custom_score/{guardrail_name}_threshold_{threshold}": custom_score,
                 }
 
                 # add all the baseline guardrails to wandb_log_dict
@@ -275,11 +275,11 @@ def main(cfg: DictConfig):
                     if guardrail_baseline in results:
                         if results[guardrail_baseline]:
                             guardrail_baseline_data = results[guardrail_baseline][0]
-                            wandb_log_dict[f"{guardrail_baseline}_reward_mean_threshold_{threshold}"] = guardrail_baseline_data[1]
-                            wandb_log_dict[f"{guardrail_baseline}_reward_error_threshold_{threshold}"] = guardrail_baseline_data[2]
-                            wandb_log_dict[f"{guardrail_baseline}_deaths_mean_threshold_{threshold}"] = guardrail_baseline_data[3]
-                            wandb_log_dict[f"{guardrail_baseline}_deaths_error_threshold_{threshold}"] = guardrail_baseline_data[4]
-                            wandb_log_dict[f"{guardrail_baseline}_custom_score_threshold_{threshold}"] = guardrail_baseline_data[6]
+                            wandb_log_dict[f"reward/mean/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[1]
+                            wandb_log_dict[f"reward/error/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[2]
+                            wandb_log_dict[f"deaths/mean/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[3]
+                            wandb_log_dict[f"deaths/error/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[4]
+                            wandb_log_dict[f"custom_score/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[6]
                 wandb.log(wandb_log_dict)
                 if guardrail_name == "new-non-iid":
                     new_non_iid_custom_scores.append(custom_score)
@@ -287,14 +287,14 @@ def main(cfg: DictConfig):
             processed_alphas.add(alpha)
             update_live_wandb_table(threshold, results, baseline_data, processed_alphas)
         plt_fig = plotting.fig_deaths_reward_custom_metric_vs_alpha_at_threshold(results, threshold, print_hyperparams_string=True)
-        wandb.log({f"plot_deaths_reward_custom_metric_vs_alpha_at_threshold_{threshold}": wandb.Image(plt_fig)})
+        wandb.log({f"plot/deaths_reward_custom_metric_vs_alpha_at_threshold_{threshold}": wandb.Image(plt_fig)})
 
     end_time = time.time()
     # Average custom metric for new-non-iid: the metric we want to maximize
     average_custom_metric = sum(new_non_iid_custom_scores) / len(
         new_non_iid_custom_scores
     )
-    wandb.log({"average_custom_metric": average_custom_metric})
+    wandb.log({"custom_score/average_custom_metric": average_custom_metric})
 
     if cfg.print:
         print(f"Average custom metric for new-non-iid: {average_custom_metric}")
@@ -328,7 +328,7 @@ def main(cfg: DictConfig):
 
     plot_definitions = [
         {
-            "name": "plot_deaths_and_reward_vs_alpha",
+            "name": "deaths_and_reward_vs_alpha",
             "function": plotting.plot_deaths_and_reward_vs_alpha,
             "kwargs": {
                 "plot_error_bars": True,
@@ -338,7 +338,7 @@ def main(cfg: DictConfig):
             },
         },
         {
-            "name": "plot_deaths_and_reward_vs_alpha_error",
+            "name": "deaths_and_reward_vs_alpha_error",
             "function": plotting.plot_deaths_and_reward_vs_alpha,
             "kwargs": {
                 "plot_error_bars": False,
@@ -352,7 +352,7 @@ def main(cfg: DictConfig):
     for plot in plot_definitions:
         fig = plot["function"](results, **plot["kwargs"])
         if fig:
-            wandb.log({f"{plot['name']}": wandb.Image(fig)})
+            wandb.log({f"plot/{plot['name']}": wandb.Image(fig)})
             print(f"Uploaded {plot['name']} to WandB. 🎉")
 
 if __name__ == "__main__":
