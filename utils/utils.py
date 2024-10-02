@@ -97,7 +97,11 @@ def print_results_table(results):
 
     if "non-iid" in results:
         for alpha, data in results["non-iid"].items():
-            _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+            if len(data[-1]) == 7:  # Check if custom_score is included
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = data[-1]
+            else:
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+                custom_score = "N/A"
 
             row = [
                 f"non-iid, alpha={alpha}",
@@ -107,12 +111,17 @@ def print_results_table(results):
                 format_mean_error(
                     extras["rejections_mean"], extras["rejections_error"]
                 ),
+                f"{custom_score:.2f}" if isinstance(custom_score, float) else custom_score,
             ]
             rows.append(row)
 
     if "new-non-iid" in results:
         for alpha, data in results["new-non-iid"].items():
-            _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+            if len(data[-1]) == 7:  # Check if custom_score is included
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = data[-1]
+            else:
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+                custom_score = "N/A"
 
             row = [
                 f"new-non-iid, alpha={alpha}",
@@ -124,6 +133,7 @@ def print_results_table(results):
                 format_mean_error(
                     extras["rejections_mean"], extras["rejections_error"]
                 ),
+                f"{custom_score:.2f}" if isinstance(custom_score, float) else custom_score,
             ]
             rows.append(row)
     col_widths = [
