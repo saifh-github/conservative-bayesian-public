@@ -5,10 +5,11 @@ import os
 import time
 from tqdm import tqdm
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import wandb
 import sys
 import pandas as pd
+import numpy as np
 
 sys.path.insert(0, os.path.abspath("../../"))
 sys.path.insert(0, os.path.abspath("../"))
@@ -20,9 +21,28 @@ from utils import utils, plotting
 import agents.agents as agents
 
 
-def custom_metric(reward_mean, deaths_mean):
-    # Prioritize minimizing deaths over maximizing reward
-    return reward_mean / (1 + deaths_mean**2)
+def custom_metric(reward_mean, deaths_mean, cheating_reward=None, cheating_deaths=None, penalty_factor=2, normalize=True, cheating_score=None):
+    if cheating_reward is not None and cheating_deaths is not None:
+        # Clip reward and deaths based on cheating guardrail performance
+        reward = min(reward_mean, cheating_reward)
+        deaths = max(deaths_mean, cheating_deaths)
+    else:
+        reward = reward_mean
+        deaths = deaths_mean
+
+    # Exponentially penalize deaths to ensure safety is prioritized
+    death_penalty = np.exp(deaths * penalty_factor)
+    score = reward / death_penalty
+
+    if normalize:
+        if cheating_reward is None or cheating_deaths is None:
+            raise ValueError("Normalization requires cheating_reward and cheating_deaths.")
+        if cheating_score is None:
+            # Normalize the score based on the cheating guardrail's performance
+            cheating_score = cheating_reward / np.exp(cheating_deaths * penalty_factor)
+        score /=  cheating_score
+
+    return score
 
 def string_repr_current_hyperparams(cfg):
     harm_estimates = []
@@ -186,6 +206,15 @@ def main(cfg: DictConfig):
 
         # Process baselines once per threshold
         baseline_data = []
+        cheating_dict = None
+        if "cheating" in cfg.experiment.guardrail_baselines:
+            cheating_index = cfg.experiment.guardrail_baselines.index("cheating")
+            cheating = cfg.experiment.guardrail_baselines.pop(cheating_index)
+            # Add "cheating" to the beginning
+            new_list = OmegaConf.create([cheating])
+            new_list.extend(cfg.experiment.guardrail_baselines)
+            cfg.experiment.guardrail_baselines = new_list
+
         for guardrail in tqdm(cfg.experiment.guardrail_baselines, desc="guardrail"):
             agent = agents.Boltzmann(
                 env=env_variable,
@@ -195,7 +224,16 @@ def main(cfg: DictConfig):
             )
             guardrail_results = utils.run_episodes(agent, cfg)
             reward_mean, reward_error, deaths_mean, deaths_error, extras = guardrail_results
-            custom_score = custom_metric(reward_mean, deaths_mean)
+            
+            if guardrail == "cheating":
+                cheating_score = custom_metric(reward_mean, deaths_mean, normalize=False)
+                cheating_dict = {
+                    'cheating_reward': reward_mean,
+                    'cheating_deaths': deaths_mean,
+                    'cheating_score': cheating_score
+                }
+            
+            custom_score = custom_metric(reward_mean, deaths_mean, *cheating_dict) if cheating_dict else 0
             results[guardrail].append(
                 (
                     threshold,
@@ -244,7 +282,10 @@ def main(cfg: DictConfig):
                 )
                 guardrail_results = utils.run_episodes(agent, cfg)
                 reward_mean, reward_error, deaths_mean, deaths_error, extras = guardrail_results
-                custom_score = custom_metric(reward_mean, deaths_mean)
+                if cheating_dict:
+                    custom_score = custom_metric(reward_mean, deaths_mean, *cheating_dict)
+                else:
+                    raise ValueError("Cheating dict not found.")
 
                 if alpha not in results[guardrail_name]:
                     results[guardrail_name][alpha] = []

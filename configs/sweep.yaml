@@ -1,6 +1,6 @@
 program: run_new_non_iid.py
 project: conservative-bayesian-agent
-method: bayes
+method: random
 metric:
   name: average_custom_metric
   goal: maximize
