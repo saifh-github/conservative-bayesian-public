@@ -347,7 +347,7 @@ def main(cfg: DictConfig):
         "%H:%M:%S", time.gmtime(execution_time)
     )
     print(
-        f"execution time was {round(execution_time)} seconds, or {round(execution_time/60)} minutes, or {round(execution_time/3600, ndigits=3)} hours for {results['args'].n_episodes} episodes"
+        f"execution time was {round(execution_time)} seconds, or {round(execution_time/60)} minutes, or {round(execution_time/3600, ndigits=3)} hours for {results['args']['n_episodes']} episodes"
     )
     results["execution_time_readable"] = execution_time_hours_minutes_seconds
     wandb.log({"execution_time": execution_time_hours_minutes_seconds})
