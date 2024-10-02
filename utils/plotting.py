@@ -135,7 +135,6 @@ def plot_deaths_and_reward_vs_alpha(
 def fig_deaths_reward_custom_metric_vs_alpha_at_threshold(
     results, guardrail_threshold, plot_error_bars=True, print_hyperparams_string=True
 ):
-    n_plots = len(results["posterior"])
     guardrails_excluding_non_iid = ["iid", "posterior", "cheating"]
     colors = {
         "iid": "green",
@@ -150,7 +149,7 @@ def fig_deaths_reward_custom_metric_vs_alpha_at_threshold(
         "cheating": 0.9,
     }
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5 * n_plots), squeeze=False)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5), squeeze=False)
 
     def format_to_1sf(x, pos):
         return f"{x:.1g}"
