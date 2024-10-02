@@ -233,7 +233,7 @@ def main(cfg: DictConfig):
                     'cheating_score': cheating_score
                 }
             
-            custom_score = custom_metric(reward_mean, deaths_mean, *cheating_dict) if cheating_dict else 0
+            custom_score = custom_metric(reward_mean, deaths_mean, **cheating_dict) if cheating_dict else 0
             results[guardrail].append(
                 (
                     threshold,
@@ -283,7 +283,7 @@ def main(cfg: DictConfig):
                 guardrail_results = utils.run_episodes(agent, cfg)
                 reward_mean, reward_error, deaths_mean, deaths_error, extras = guardrail_results
                 if cheating_dict:
-                    custom_score = custom_metric(reward_mean, deaths_mean, *cheating_dict)
+                    custom_score = custom_metric(reward_mean, deaths_mean, **cheating_dict)
                 else:
                     raise ValueError("Cheating dict not found.")
 
