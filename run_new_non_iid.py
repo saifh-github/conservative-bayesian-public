@@ -108,6 +108,32 @@ def main(cfg: DictConfig):
         # Log the table so it can be used in the W&B UI
         wandb.log({f"data_threshold_{threshold}": table})
 
+        # For Reward vs Alpha
+        line_plot_reward = wandb.plot.line(
+            table,
+            x='Alpha',
+            y='Reward',
+            title=f"Reward vs Alpha (Threshold: {threshold})",
+            stroke='Guardrail'
+        )
+
+        wandb.log({
+            f"Reward_vs_Alpha_Threshold_{threshold}": line_plot_reward
+        })
+
+        # For Deaths vs Alpha
+        line_plot_deaths = wandb.plot.line(
+            table,
+            x='Alpha',
+            y='Deaths',
+            title=f"Deaths vs Alpha (Threshold: {threshold})",
+            stroke='Guardrail'
+        )
+
+        wandb.log({
+            f"Deaths_vs_Alpha_Threshold_{threshold}": line_plot_deaths
+        })
+
     for threshold in tqdm(cfg.experiment.guardrail_thresholds, desc="guardrail threshold"):
         env_variable = utils.make_env(cfg.environment)
         if not cfg.device == "cuda":
