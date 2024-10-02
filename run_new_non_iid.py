@@ -84,6 +84,64 @@ def string_repr_current_hyperparams(cfg):
     
     return 'harm estimates:: ' + ' | '.join(params)
 
+def update_live_wandb_table(threshold, results, baseline_data, processed_alphas):
+    # Start with the cached baseline data
+    data = baseline_data
+
+    # Collect data for processed alphas
+    for guardrail_name in ["non-iid", "new-non-iid"]:
+        if guardrail_name in results:
+            for alpha in processed_alphas:
+                if alpha in results[guardrail_name]:
+                    for record in results[guardrail_name][alpha]:
+                        threshold_value, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = record
+                        if threshold_value != threshold:
+                            continue
+                        data.append({
+                            'Alpha': float(alpha),
+                            'Reward': reward_mean,
+                            'Deaths': deaths_mean,
+                            'Reward_Error': reward_error,
+                            'Deaths_Error': deaths_error,
+                            'Custom_Score': custom_score,
+                            'Guardrail': guardrail_name,
+                            'Threshold': threshold,
+                            'Is_Baseline': False
+                        })
+
+    df = pd.DataFrame(data)
+    table = wandb.Table(dataframe=df)
+
+    # Log the table so it can be used in the W&B UI
+    wandb.log({f"data_threshold_{threshold}": table})
+
+    # For Reward vs Alpha
+    line_plot_reward = wandb.plot.line(
+        table,
+        x='Alpha',
+        y='Reward',
+        title=f"Reward vs Alpha (Threshold: {threshold})",
+        stroke='Guardrail'
+    )
+
+    wandb.log({
+        f"Reward_vs_Alpha_Threshold_{threshold}": line_plot_reward
+    })
+
+    # For Deaths vs Alpha
+    line_plot_deaths = wandb.plot.line(
+        table,
+        x='Alpha',
+        y='Deaths',
+        title=f"Deaths vs Alpha (Threshold: {threshold})",
+        stroke='Guardrail'
+    )
+
+    wandb.log({
+        f"Deaths_vs_Alpha_Threshold_{threshold}": line_plot_deaths
+    })
+
+
 @hydra.main(version_base=None, config_path="./configs", config_name="config")
 def main(cfg: DictConfig):
     # Calculate alphas based on d_arm
@@ -137,64 +195,6 @@ def main(cfg: DictConfig):
         results["new-non-iid"][alpha] = []
 
     start_time = time.time()
-
-
-    def update_live_wandb_table(threshold, results, baseline_data, processed_alphas):
-        # Start with the cached baseline data
-        data = baseline_data
-
-        # Collect data for processed alphas
-        for guardrail_name in ["non-iid", "new-non-iid"]:
-            if guardrail_name in results:
-                for alpha in processed_alphas:
-                    if alpha in results[guardrail_name]:
-                        for record in results[guardrail_name][alpha]:
-                            threshold_value, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = record
-                            if threshold_value != threshold:
-                                continue
-                            data.append({
-                                'Alpha': float(alpha),
-                                'Reward': reward_mean,
-                                'Deaths': deaths_mean,
-                                'Reward_Error': reward_error,
-                                'Deaths_Error': deaths_error,
-                                'Custom_Score': custom_score,
-                                'Guardrail': guardrail_name,
-                                'Threshold': threshold,
-                                'Is_Baseline': False
-                            })
-
-        df = pd.DataFrame(data)
-        table = wandb.Table(dataframe=df)
-
-        # Log the table so it can be used in the W&B UI
-        wandb.log({f"data_threshold_{threshold}": table})
-
-        # For Reward vs Alpha
-        line_plot_reward = wandb.plot.line(
-            table,
-            x='Alpha',
-            y='Reward',
-            title=f"Reward vs Alpha (Threshold: {threshold})",
-            stroke='Guardrail'
-        )
-
-        wandb.log({
-            f"Reward_vs_Alpha_Threshold_{threshold}": line_plot_reward
-        })
-
-        # For Deaths vs Alpha
-        line_plot_deaths = wandb.plot.line(
-            table,
-            x='Alpha',
-            y='Deaths',
-            title=f"Deaths vs Alpha (Threshold: {threshold})",
-            stroke='Guardrail'
-        )
-
-        wandb.log({
-            f"Deaths_vs_Alpha_Threshold_{threshold}": line_plot_deaths
-        })
 
     for threshold in tqdm(cfg.experiment.guardrail_thresholds, desc="guardrail threshold"):
         env_variable = utils.make_env(cfg.environment)
@@ -320,7 +320,8 @@ def main(cfg: DictConfig):
                             wandb_log_dict[f"reward_error/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[2]
                             wandb_log_dict[f"deaths_mean/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[3]
                             wandb_log_dict[f"deaths_error/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[4]
-                            wandb_log_dict[f"custom_score/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[6]
+                            if guardrail_baseline != "cheating":
+                                wandb_log_dict[f"custom_score/{guardrail_baseline}_threshold_{threshold}"] = guardrail_baseline_data[6]
                 wandb.log(wandb_log_dict)
                 if guardrail_name == "new-non-iid":
                     new_non_iid_custom_scores.append(custom_score)
