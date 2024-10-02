@@ -84,7 +84,6 @@ def main(cfg: DictConfig):
 
         # Collect data for processed alphas
         for guardrail_name in ["non-iid", "new-non-iid"]:
-            # Ensure guardrail_name exists in results
             if guardrail_name in results:
                 for alpha in processed_alphas:
                     if alpha in results[guardrail_name]:
@@ -105,12 +104,12 @@ def main(cfg: DictConfig):
 
         df = pd.DataFrame(data)
         table = wandb.Table(dataframe=df)
-        wandb.log({f"data_threshold_{threshold}": table})
 
-        # Define Vega-Lite specifications and log charts
+        # Define Vega-Lite specification for Reward vs Alpha
         reward_vega_spec = {
             "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
             "description": f"Reward vs Alpha (Threshold: {threshold})",
+            "data": {"name": "table"},  # Reference the data by name
             "width": 600,
             "height": 400,
             "mark": {
@@ -134,17 +133,15 @@ def main(cfg: DictConfig):
             "title": f"Reward vs Alpha (Threshold: {threshold})"
         }
 
-        wandb.log({
-            f"Reward_vs_Alpha_Threshold_{threshold}": wandb.plot.vega_lite(
-                reward_vega_spec,
-                table,
-                fields={"Alpha": "Alpha", "Reward": "Reward", "Guardrail": "Guardrail", "Is_Baseline": "Is_Baseline"}
-            )
-        })
+        reward_chart = wandb.data_types.Vega(reward_vega_spec, data={"table": table})
 
+        wandb.log({f"Reward_vs_Alpha_Threshold_{threshold}": reward_chart})
+
+        # Similarly for Deaths vs Alpha
         deaths_vega_spec = {
             "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
             "description": f"Deaths vs Alpha (Threshold: {threshold})",
+            "data": {"name": "table"},
             "width": 600,
             "height": 400,
             "mark": {
@@ -168,13 +165,9 @@ def main(cfg: DictConfig):
             "title": f"Deaths vs Alpha (Threshold: {threshold})"
         }
 
-        wandb.log({
-            f"Deaths_vs_Alpha_Threshold_{threshold}": wandb.plot.vega_lite(
-                deaths_vega_spec,
-                table,
-                fields={"Alpha": "Alpha", "Deaths": "Deaths", "Guardrail": "Guardrail", "Is_Baseline": "Is_Baseline"}
-            )
-        })
+        deaths_chart = wandb.data_types.Vega(deaths_vega_spec, data={"table": table})
+
+        wandb.log({f"Deaths_vs_Alpha_Threshold_{threshold}": deaths_chart})
 
     for threshold in tqdm(cfg.experiment.guardrail_thresholds, desc="guardrail threshold"):
         env_variable = utils.make_env(cfg.environment)
