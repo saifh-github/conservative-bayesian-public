@@ -8,6 +8,7 @@ import hydra
 from omegaconf import DictConfig
 import wandb
 import sys
+import pandas as pd
 
 sys.path.insert(0, os.path.abspath("../../"))
 sys.path.insert(0, os.path.abspath("../"))
@@ -76,42 +77,104 @@ def main(cfg: DictConfig):
 
     start_time = time.time()
 
-    def update_live_plot(threshold, live_plot_data):
-        for metric in ['reward', 'deaths']:
-            # Prepare data for wandb.Table
-            data = []
-            for guardrail_name, data_dict in live_plot_data[threshold].items():
-                x_values = data_dict[metric]['x']
-                y_values = data_dict[metric]['y']
-                for x, y in zip(x_values, y_values):
-                    data.append([x, y, guardrail_name])
-            # Create a wandb.Table
-            table = wandb.Table(data=data, columns=["Alpha", metric.capitalize(), "Guardrail"])
-            # Log the table
-            wandb.log({f"{metric}_data_threshold_{threshold}": table})
 
-            # Define a Vega-Lite specification for the custom chart
-            vega_spec = {
-                "$schema": "https://vega.github.io/schema/vega-lite/v4.json",
-                "description": f"{metric.capitalize()} vs Alpha (Threshold: {threshold})",
-                "mark": "line",
-                "encoding": {
-                    "x": {"field": "Alpha", "type": "quantitative", "title": "Alpha"},
-                    "y": {"field": metric.capitalize(), "type": "quantitative", "title": metric.capitalize()},
-                    "color": {"field": "Guardrail", "type": "nominal", "title": "Guardrail"}
-                },
-                "data": {"name": "wandb"},
-                "title": f"{metric.capitalize()} vs Alpha (Threshold: {threshold})"
-            }
+    def update_live_plot(threshold, results, baseline_data, processed_alphas):
+        # Start with the cached baseline data
+        data = baseline_data.copy()
 
-            # Log the custom chart using wandb.plot_table
-            wandb.log({
-                f"{metric}_chart_threshold_{threshold}": wandb.plot_table(
-                    vega_spec_name=None,
-                    data_table=table,
-                    vega_spec=vega_spec
-                )
-            })
+        # Collect data for processed alphas
+        for guardrail_name in ["non-iid", "new-non-iid"]:
+            # Ensure guardrail_name exists in results
+            if guardrail_name in results:
+                for alpha in processed_alphas:
+                    if alpha in results[guardrail_name]:
+                        for record in results[guardrail_name][alpha]:
+                            threshold_value, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = record
+                            if threshold_value != threshold:
+                                continue
+                            data.append({
+                                'Alpha': float(alpha),
+                                'Reward': reward_mean,
+                                'Deaths': deaths_mean,
+                                'Reward_Error': reward_error,
+                                'Deaths_Error': deaths_error,
+                                'Guardrail': guardrail_name,
+                                'Threshold': threshold,
+                                'Is_Baseline': False
+                            })
+
+        df = pd.DataFrame(data)
+        table = wandb.Table(dataframe=df)
+        wandb.log({f"data_threshold_{threshold}": table})
+
+        # Define Vega-Lite specifications and log charts
+        reward_vega_spec = {
+            "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+            "description": f"Reward vs Alpha (Threshold: {threshold})",
+            "width": 600,
+            "height": 400,
+            "mark": {
+                "type": "line",
+                "point": True,
+                "strokeDash": {
+                    "condition": {"test": "datum.Is_Baseline == true", "value": [4, 4]},
+                    "value": [0]
+                }
+            },
+            "encoding": {
+                "x": {"field": "Alpha", "type": "quantitative", "title": "Alpha"},
+                "y": {"field": "Reward", "type": "quantitative", "title": "Reward"},
+                "color": {"field": "Guardrail", "type": "nominal", "title": "Guardrail"},
+                "tooltip": [
+                    {"field": "Alpha", "type": "quantitative"},
+                    {"field": "Reward", "type": "quantitative"},
+                    {"field": "Guardrail", "type": "nominal"}
+                ]
+            },
+            "title": f"Reward vs Alpha (Threshold: {threshold})"
+        }
+
+        wandb.log({
+            f"Reward_vs_Alpha_Threshold_{threshold}": wandb.plot.vega_lite(
+                reward_vega_spec,
+                table,
+                fields={"Alpha": "Alpha", "Reward": "Reward", "Guardrail": "Guardrail", "Is_Baseline": "Is_Baseline"}
+            )
+        })
+
+        deaths_vega_spec = {
+            "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+            "description": f"Deaths vs Alpha (Threshold: {threshold})",
+            "width": 600,
+            "height": 400,
+            "mark": {
+                "type": "line",
+                "point": True,
+                "strokeDash": {
+                    "condition": {"test": "datum.Is_Baseline == true", "value": [4, 4]},
+                    "value": [0]
+                }
+            },
+            "encoding": {
+                "x": {"field": "Alpha", "type": "quantitative", "title": "Alpha"},
+                "y": {"field": "Deaths", "type": "quantitative", "title": "Deaths"},
+                "color": {"field": "Guardrail", "type": "nominal", "title": "Guardrail"},
+                "tooltip": [
+                    {"field": "Alpha", "type": "quantitative"},
+                    {"field": "Deaths", "type": "quantitative"},
+                    {"field": "Guardrail", "type": "nominal"}
+                ]
+            },
+            "title": f"Deaths vs Alpha (Threshold: {threshold})"
+        }
+
+        wandb.log({
+            f"Deaths_vs_Alpha_Threshold_{threshold}": wandb.plot.vega_lite(
+                deaths_vega_spec,
+                table,
+                fields={"Alpha": "Alpha", "Deaths": "Deaths", "Guardrail": "Guardrail", "Is_Baseline": "Is_Baseline"}
+            )
+        })
 
     for threshold in tqdm(cfg.experiment.guardrail_thresholds, desc="guardrail threshold"):
         env_variable = utils.make_env(cfg.environment)
@@ -121,11 +184,8 @@ def main(cfg: DictConfig):
         if cfg.print:
             print(f"Guardrail threshold = {threshold}")
 
-        live_plot_data = {threshold: {
-            guardrail: {'reward': {'x': [], 'y': []}, 'deaths': {'x': [], 'y': []}}
-            for guardrail in cfg.experiment.guardrail_baselines + ['non-iid', 'new-non-iid']
-        }}
-
+        # Process baselines once per threshold
+        baseline_data = []
         for guardrail in tqdm(cfg.experiment.guardrail_baselines, desc="guardrail"):
             agent = agents.Boltzmann(
                 env=env_variable,
@@ -136,13 +196,28 @@ def main(cfg: DictConfig):
             guardrail_results = utils.run_episodes(agent, cfg)
             reward_mean, reward_error, deaths_mean, deaths_error, extras = guardrail_results
             custom_score = custom_metric(reward_mean, deaths_mean)
-            results[guardrail].append((threshold, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score))
-            
-            # Update live_plot_data for baselines
-            live_plot_data[threshold][guardrail]['reward']['x'] = [0, max(cfg.experiment.alphas)]
-            live_plot_data[threshold][guardrail]['reward']['y'] = [reward_mean, reward_mean]
-            live_plot_data[threshold][guardrail]['deaths']['x'] = [0, max(cfg.experiment.alphas)]
-            live_plot_data[threshold][guardrail]['deaths']['y'] = [deaths_mean, deaths_mean]
+            results[guardrail].append(
+                (
+                    threshold,
+                    reward_mean,
+                    reward_error,
+                    deaths_mean,
+                    deaths_error,
+                    extras,
+                    custom_score,
+                )
+            )
+
+            baseline_data.append({
+                'Alpha': 0.0,
+                'Reward': reward_mean,
+                'Deaths': deaths_mean,
+                'Reward_Error': reward_error,
+                'Deaths_Error': deaths_error,
+                'Guardrail': guardrail,
+                'Threshold': threshold,
+                'Is_Baseline': True
+            })
 
             wandb.log(
                 {
@@ -152,13 +227,13 @@ def main(cfg: DictConfig):
                     "reward_error": reward_error,
                     "deaths_mean": deaths_mean,
                     "deaths_error": deaths_error,
-                    "extras": extras,
                     "custom_score": custom_score,
                     f"reward_mean_threshold_{threshold}": reward_mean,
                     f"deaths_mean_threshold_{threshold}": deaths_mean,
                 }
             )
 
+        processed_alphas = set()
         new_non_iid_custom_scores = []
         for alpha in tqdm(cfg.experiment.alphas, desc="alpha"):
             for guardrail_name in ["non-iid", "new-non-iid"]:
@@ -172,8 +247,10 @@ def main(cfg: DictConfig):
                 )
                 guardrail_results = utils.run_episodes(agent, cfg)
                 reward_mean, reward_error, deaths_mean, deaths_error, extras = guardrail_results
-                # Custom metric to maximize reward while minimizing deaths
                 custom_score = custom_metric(reward_mean, deaths_mean)
+
+                if alpha not in results[guardrail_name]:
+                    results[guardrail_name][alpha] = []
 
                 results[guardrail_name][alpha].append(
                     (
@@ -196,21 +273,14 @@ def main(cfg: DictConfig):
                         "reward_error": reward_error,
                         "deaths_mean": deaths_mean,
                         "deaths_error": deaths_error,
-                        "extras": extras,
                         "custom_score": custom_score,
                     }
                 )
                 if guardrail_name == "new-non-iid":
                     new_non_iid_custom_scores.append(custom_score)
 
-                # Update live_plot_data
-                live_plot_data[threshold][guardrail_name]['reward']['x'].append(float(alpha))
-                live_plot_data[threshold][guardrail_name]['reward']['y'].append(reward_mean)
-                live_plot_data[threshold][guardrail_name]['deaths']['x'].append(float(alpha))
-                live_plot_data[threshold][guardrail_name]['deaths']['y'].append(deaths_mean)
-
-            # Update live plot after each alpha
-            update_live_plot(threshold, live_plot_data)
+            processed_alphas.add(alpha)
+            update_live_plot(threshold, results, baseline_data, processed_alphas)
 
     end_time = time.time()
     # Average custom metric for new-non-iid: the metric we want to maximize
