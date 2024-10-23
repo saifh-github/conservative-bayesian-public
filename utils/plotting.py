@@ -4,6 +4,98 @@ import numpy as np
 import textwrap
 
 
+def plot_deaths_and_reward_vs_alpha_2x3(
+    results, plot_error_bars=True, save_path=None, save_format="pdf"
+):
+    n_plots = len(results["posterior"])
+    guardrails = ["iid", "posterior", "cheating"]
+    colors = {"iid": "green", "posterior": "blue", "cheating": "purple"}
+    error_bar_positions = {
+        "iid": 0.3,
+        "posterior": 0.6,
+        "cheating": 0.9,
+    }
+
+    fig, axes = plt.subplots(2, 3, figsize=(20, 12), squeeze=False)
+
+    def format_to_1sf(x, pos):
+        return f"{x:.1g}"
+
+    for i, threshold in enumerate([res[0] for res in results["posterior"]]):
+        for j, metric in enumerate(["reward", "deaths"]):
+            row = j
+            col = i
+            ax = axes[row, col]
+
+            # Plot non-iid data
+            alphas = sorted(results["non_iid"].keys())
+            non_iid_data = [
+                next(res for res in results["non_iid"][alpha] if res[0] == threshold)
+                for alpha in alphas
+            ]
+
+            y = [res[1] if metric == "reward" else res[3] for res in non_iid_data]
+            y_err = (
+                [res[2] if metric == "reward" else res[4] for res in non_iid_data]
+                if plot_error_bars
+                else None
+            )
+
+            # Use range(len(alphas)) for x-axis to space points evenly
+            ax.errorbar(
+                range(len(alphas)),
+                y,
+                yerr=y_err,
+                fmt="-o",
+                color="orange",
+                label="Prop 4.6",
+                capsize=5,
+            )
+
+            # Plot other guardrails as dashed lines
+            labels = ["Prop 3.4", "Posterior", "Cheating"]
+            for k, guardrail in enumerate(guardrails):
+                data = next(res for res in results[guardrail] if res[0] == threshold)
+                value = data[1] if metric == "reward" else data[3]
+                error = data[2] if metric == "reward" else data[4]
+
+                ax.axhline(
+                    y=value, color=colors[guardrail], linestyle="--", label=labels[k]
+                )
+                if plot_error_bars:
+                    ax.errorbar(
+                        error_bar_positions[guardrail],
+                        value,
+                        yerr=error,
+                        fmt="none",
+                        ecolor=colors[guardrail],
+                        capsize=5,
+                    )
+
+            ax.set_xlabel("Alpha", fontsize=18)
+            ax.set_ylabel("Reward" if metric == "reward" else "Deaths", fontsize=18)
+            ax.set_title(
+                f"{metric.capitalize()} vs Alpha (C = {threshold})", fontsize=18
+            )
+            ax.legend(fontsize=12)
+
+            # Remove gridlines
+            ax.grid(False)
+
+            # Set x-ticks to match non-iid alpha values and format to 1 significant figure
+            ax.set_xticks(range(len(alphas)))
+            ax.set_xticklabels([format_to_1sf(alpha, None) for alpha in alphas])
+            plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, format=save_format, bbox_inches="tight")
+        plt.close()
+    else:
+        plt.show()
+
+
 def plot_deaths_and_reward_vs_alpha(
     results, plot_error_bars=True, save_path=None, save_format="pdf", return_fig=False, include_custom_metric=False, print_hyperparams_string=False
 ):
@@ -250,7 +342,7 @@ def plot_overestimation(
     alphas = args.alphas
     overestimates = results["overestimates"]
     overestimate_error = results["overestimate error"]
-    p = 1 / (args.k**args.d_arm) 
+    p = 1 / (args.k**args.d_arm)
     theoretical_lower_bound = [1 - (alpha / p) for alpha in alphas]
     theoretical_lower_bound = [max(0, i) for i in theoretical_lower_bound]
 
@@ -278,8 +370,9 @@ def plot_overestimation(
         label="Theoretical lower bound",
     )
 
-    ax.set_xlabel("Alpha")
-    ax.set_ylabel("Overestimation Frequency")
+    ax.set_xlabel("Alpha", fontsize=16)
+    ax.set_ylabel("Overestimation Frequency", fontsize=16)
+    # ax.set_title("Overestimation Frequency vs Alpha")
 
     # Remove gridlines
     ax.grid(False)
@@ -292,7 +385,7 @@ def plot_overestimation(
     # Use scientific notation for y-axis if values are very small
     ax.yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
     ax.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
-    ax.legend()
+    ax.legend(fontsize=12)
 
     plt.tight_layout()
 
@@ -348,8 +441,8 @@ def box_plot(results, save_path=None, save_format="pdf"):
     for patch in bp["boxes"]:
         patch.set(facecolor="lightblue", alpha=0.7)
 
-    ax.set_xlabel("Alpha")
-    ax.set_ylabel("Harm Estimate")
+    ax.set_xlabel("Alpha", fontsize=16)
+    ax.set_ylabel("Harm Estimate", fontsize=16)
     ax.axhline(y=0.5, color="red", linestyle="--", label="ground truth")
 
     # Set x-ticks to match alpha values
@@ -357,7 +450,7 @@ def box_plot(results, save_path=None, save_format="pdf"):
     ax.set_xticklabels([f"{alpha:.1g}" for alpha in alphas])
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
 
-    ax.legend()
+    ax.legend(fontsize=12)
     plt.tight_layout()
 
     if save_path:

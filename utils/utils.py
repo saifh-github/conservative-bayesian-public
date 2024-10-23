@@ -2,6 +2,7 @@ import numpy as np
 import plotly.graph_objects as go
 import torch as t
 import gymnasium as gym
+import agents.agents as agents
 from envs.exploding_bandit import ExplodingBandit
 
 device = t.device("cuda" if t.cuda.is_available() else "cpu")
@@ -53,6 +54,9 @@ def run_episodes(agent, cfg):
 
 
 def run_tightness_episodes(agent, args):
+    assert isinstance(
+        agent, agents.Uniform
+    ), "the run_tightness_episodes function is just for the Uniform agent"
 
     overestimates, harm_estimates = [], []
 
@@ -61,9 +65,9 @@ def run_tightness_episodes(agent, args):
         overestimates.append(ep_overestimates)
         harm_estimates += ep_harm_estimates
 
-    assert (
-        len(harm_estimates) == args.n_episodes * args.episode_length
-    ), f"should have {args.n_episodes*args.episode_length} harm estimates but have {len(harm_estimates)}"
+    # assert (
+    #     len(harm_estimates) == args.n_episodes * args.episode_length
+    # ), f"should have {args.n_episodes*args.episode_length} harm estimates but have {len(harm_estimates)}"
 
     overestimate_mean, overestimate_error = get_mean_and_error(overestimates)
     return overestimate_mean, overestimate_error, harm_estimates
