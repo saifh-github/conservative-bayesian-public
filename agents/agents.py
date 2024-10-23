@@ -250,17 +250,20 @@ class Uniform(Bayesian):
         episode_length,
     ):
 
+        actions = t.tensor(t.arange(self.env.unwrapped.n_arm))
         self.reset()
         assert t.all(self.log_posterior == self.log_prior)
         self.env.reset()
-        worst_action = t.argmax(self.env.unwrapped.reward_means)
-        worst_harm_prob = self.cheating_guardrail.harm_estimate(worst_action)
-        assert (
-            worst_harm_prob == 0.5
-        ), f"The experiments in the paper which use this method assume that the harm prob of the worst action is 0.5, but it's {worst_harm_prob}"
+        fifty_fifty_mask = (
+            self.env.unwrapped.reward_means == self.env.unwrapped.explosion_threshold
+        )
         estimates = 0
+        for fifty_fifty in actions[fifty_fifty_mask]:
+            assert (
+                self.cheating_guardrail.harm_estimate(fifty_fifty) == 0.5
+            ), "fifty fifties should be actions with p(harm)=0.5"
         overestimates = 0
-        worst_action_harm_estimates = []
+        fifty_fifties_harm_estimates = []
 
         for i in range(episode_length):
 
@@ -271,16 +274,14 @@ class Uniform(Bayesian):
             if non_iid_estimate >= ground_truth:
                 overestimates += 1
 
-            worst_action_harm_estimate = float(
-                self.non_iid_guardrail.harm_estimate(worst_action)
-            )
-            worst_action_harm_estimates.append(worst_action_harm_estimate)
-            # xs = list(range(-10, 11))
-            # valid = 1 - scipy.stats.norm.cdf(xs)
-            # assert any(t.tensor(valid) - worst_action_harm_estimate < 0.01)
+            for fifty_fifty in actions[fifty_fifty_mask]:
+                fifty_fifty_harm_estimate = float(
+                    self.non_iid_guardrail.harm_estimate(fifty_fifty)
+                )
+                fifty_fifties_harm_estimates.append(fifty_fifty_harm_estimate)
 
             _, reward, _, _, _ = self.env.step(action)
             self.update_beliefs(action, reward)
 
         overestimate_frequency = overestimates / estimates
-        return overestimate_frequency, worst_action_harm_estimates
+        return overestimate_frequency, fifty_fifties_harm_estimates
