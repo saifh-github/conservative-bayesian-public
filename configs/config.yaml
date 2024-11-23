@@ -1,0 +1,40 @@
+defaults:
+  - _self_
+
+device: "cuda"
+save_path: "results/non_iid/results.pkl.gz"
+print: true
+
+# Experiment
+experiment:
+  n_episodes: 250
+  episode_length: 25
+  guardrail_thresholds: [0.001, 0.01, 0.1]
+  guardrail_baselines: ["cheating", "none", "posterior", "iid"]
+  alphas: [] # Will be calculated automatically
+
+# Environment
+environment:
+  exploding_frac: 0.01
+  episode_length: 25
+  exploding: true
+  fixed_explosion_threshold: null
+  # Agent
+  n_arm: 10
+  d_arm: 10
+  k: 2
+  sigma_r: 1.0
+  beta: 0.5
+
+# Guardrail
+guardrail_new_non_iid:
+  mean_type: "arithmetic"
+  posterior_increases: false
+  softmax_temperature: null
+  power_mean_exponent: 1.0
+  quantile: 0.8
+  harm_estimates_weights:
+    max: 1.0
+    mean: 0.0
+    quantile: 0.0
+

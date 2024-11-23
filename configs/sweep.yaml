@@ -1,0 +1,28 @@
+program: run_new_non_iid.py
+project: conservative-bayesian-agent
+method: random
+metric:
+  name: average_custom_metric
+  goal: maximize
+parameters:
+  guardrail_new_non_iid.mean_type:
+    values: ["arithmetic", "geometric", "harmonic"]
+  guardrail_new_non_iid.posterior_increases:
+    values: [true, false]
+  guardrail_new_non_iid.softmax_temperature:
+    values: [0.1, 0.5, 1, 1.5, 2]
+  guardrail_new_non_iid.power_mean_exponent:
+    values: [0.5, 1, 2]
+  guardrail_new_non_iid.quantile:
+    values: [0.5, 0.75, 0.9]
+  guardrail_new_non_iid.harm_estimates_weights.max:
+    values: [0, 1]
+  guardrail_new_non_iid.harm_estimates_weights.mean:
+    values: [0, 1]
+  guardrail_new_non_iid.harm_estimates_weights.quantile:
+    values: [0, 1]
+command:
+  # - ${env}
+  - python
+  - ${program}
+  - ${args_no_hyphens}

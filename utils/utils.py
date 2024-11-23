@@ -2,31 +2,21 @@ import numpy as np
 import plotly.graph_objects as go
 import torch as t
 import gymnasium as gym
-
+from envs.exploding_bandit import ExplodingBandit
 
 device = t.device("cuda" if t.cuda.is_available() else "cpu")
 
-
-def make_env(args, d_arm, exploding=True, fixed_explosion_threshold=None):
-
-    gym.envs.registration.register(
-        id="ExplodingBandit",
-        entry_point="__main__:ExplodingBandit",
-        kwargs={
-            "n_arm": args.n_arm,
-            "exploding_frac": args.exploding_frac,
-            "exploding": exploding,
-            "sigma_r": args.sigma_r,
-            "k": args.k,
-            "d_arm": d_arm,
-            "fixed_explosion_threshold": fixed_explosion_threshold,
-        },
+def make_env(cfg):
+    env = ExplodingBandit(
+        n_arm=cfg.n_arm,
+        exploding_frac=cfg.exploding_frac,
+        d_arm=cfg.d_arm,
+        sigma_r=cfg.sigma_r,
+        k=cfg.k,
+        exploding=cfg.exploding,
+        fixed_explosion_threshold=cfg.fixed_explosion_threshold,
     )
-
-    env = gym.make("ExplodingBandit")
-
     return env
-
 
 def get_mean_and_error(data):
     mean = np.mean(data)
@@ -35,14 +25,14 @@ def get_mean_and_error(data):
     return mean, two_sigma_error
 
 
-def run_episodes(agent, args):
+def run_episodes(agent, cfg):
+    episode_length = cfg.experiment.episode_length
+    n_episodes = cfg.experiment.n_episodes
 
     rewards, rejections, timesteps_survived, deaths = [], [], [], []
 
-    for i in range(args.n_episodes):
-        ep_rewards, ep_rejections, ep_timesteps_survived, ep_deaths = agent.run_episode(
-            args.episode_length
-        )
+    for _ in range(n_episodes):
+        ep_rewards, ep_rejections, ep_timesteps_survived, ep_deaths = agent.run_episode(episode_length)
         rewards.append(ep_rewards)
         rejections.append(ep_rejections)
         timesteps_survived.append(ep_timesteps_survived)
@@ -80,10 +70,7 @@ def run_tightness_episodes(agent, args):
 
 
 def print_results_table(results):
-    """
-    Prints the results table for the most recent phase of training
-    """
-    headers = ["Guardrail", "Reward", "Deaths", "Timesteps", "Rejections"]
+    headers = ["Guardrail", "Reward", "Deaths", "Timesteps", "Rejections", "Custom Score"]
     rows = []
 
     def format_mean_error(mean, error):
@@ -91,23 +78,30 @@ def print_results_table(results):
 
     for guardrail in ["none", "cheating", "posterior", "iid"]:
         if guardrail in results:
-            _, reward_mean, reward_error, deaths_mean, deaths_error, extras = results[
-                guardrail
-            ][-1]
+            data = results[guardrail][-1]
+            if len(data) == 7:  # Check if custom_score is included
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = data
+            else:
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data
+                custom_score = "N/A"
+            
             row = [
                 guardrail,
                 format_mean_error(reward_mean, reward_error),
                 format_mean_error(deaths_mean, deaths_error),
                 format_mean_error(extras["timesteps_mean"], extras["timesteps_error"]),
-                format_mean_error(
-                    extras["rejections_mean"], extras["rejections_error"]
-                ),
+                format_mean_error(extras["rejections_mean"], extras["rejections_error"]),
+                f"{custom_score:.2f}" if isinstance(custom_score, float) else custom_score,
             ]
             rows.append(row)
 
     if "non-iid" in results:
         for alpha, data in results["non-iid"].items():
-            _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+            if len(data[-1]) == 7:  # Check if custom_score is included
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = data[-1]
+            else:
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+                custom_score = "N/A"
 
             row = [
                 f"non-iid, alpha={alpha}",
@@ -117,12 +111,17 @@ def print_results_table(results):
                 format_mean_error(
                     extras["rejections_mean"], extras["rejections_error"]
                 ),
+                f"{custom_score:.2f}" if isinstance(custom_score, float) else custom_score,
             ]
             rows.append(row)
 
     if "new-non-iid" in results:
         for alpha, data in results["new-non-iid"].items():
-            _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+            if len(data[-1]) == 7:  # Check if custom_score is included
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras, custom_score = data[-1]
+            else:
+                _, reward_mean, reward_error, deaths_mean, deaths_error, extras = data[-1]
+                custom_score = "N/A"
 
             row = [
                 f"new-non-iid, alpha={alpha}",
@@ -134,6 +133,7 @@ def print_results_table(results):
                 format_mean_error(
                     extras["rejections_mean"], extras["rejections_error"]
                 ),
+                f"{custom_score:.2f}" if isinstance(custom_score, float) else custom_score,
             ]
             rows.append(row)
     col_widths = [
