@@ -5,6 +5,7 @@ import pickle
 import os
 import time
 from tqdm import tqdm
+from termcolor import colored
 
 import torch as t
 import gymnasium as gym
@@ -19,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--save_path", default=f"results/non_iid/{timestamp}/results.pkl.gz", type=str
 )
-parser.add_argument("--device", default="cpu", type=str, help="cpu or cuda")
+parser.add_argument("--device", default="auto", type=str, help="Device to use: 'cpu', 'cuda', 'mps', or 'auto'")
 parser.add_argument("--print", default=True, type=bool)
 
 # hidden, fixed, hyperparameters
@@ -36,11 +37,12 @@ parser.add_argument("--d_arm", default=10, type=int)
 # hyperparameters we vary in the experiment
 parser.add_argument(
     "--alphas",
-    default=[],
+    default=[1e-5, 3e-5, 1e-4, 3e-4, 1e-2, 3e-2, 1e-1, 3e-1, 1.0],
     type=list,
 )
 
 parser.add_argument("--guardrail_thresholds", default=[1e-3, 1e-2, 1e-1], type=list)
+parser.add_argument("--include_new_non_iid", action="store_true", help="Include new-non-iid guardrail in experiments")
 
 
 def main(args):
@@ -53,36 +55,37 @@ def main(args):
     start_time = time.time()
     args.save_path = f"results/non_iid/{args.n_episodes}/results.pkl.gz"
 
-    t.set_default_device(t.device(args.device))
-    t.set_grad_enabled(False)
-
-    if args.device == "cuda":
-        assert (
-            t.cuda.is_available()
-        ), "Cuda not available. Use --device='cpu', or get cuda working."
+    # Set device
+    device = utils.get_device(args.device)
+    print(colored(f"🖥️  Using device: {device}", "cyan"))
+    t.set_default_device(t.device(device))
+    
+    if device == "cuda":
+        assert t.cuda.is_available(), "CUDA not available. Use another device option."
+    elif device == "mps":
+        assert hasattr(t.backends, "mps") and t.backends.mps.is_available(), "MPS not available. Use another device option."
     else:
-        print("Running on CPU. Use --device='cuda' for GPU.")
+        print(colored(f"🖥️  Running on {device}. Use --device='cuda' for GPU.", "cyan"))
 
     results = {}
     results["args"] = args
     for guardrail in ["none", "cheating", "posterior", "iid"]:
         results[guardrail] = []
     results["non-iid"] = {}
-    results["new-non-iid"] = {}
+    if args.include_new_non_iid:
+        results["new-non-iid"] = {}
     for alpha in args.alphas:
         results["non-iid"][alpha] = []
-        results["new-non-iid"][alpha] = []
+        if args.include_new_non_iid:
+            results["new-non-iid"][alpha] = []
 
     for threshold in tqdm(args.guardrail_thresholds, desc="guardrail threshold"):
-        # env_fixed = utils.make_env(
-        #     args, d_arm=args.d_arm, fixed_explosion_threshold=10
-        # )
         env_variable = utils.make_env(args, d_arm=args.d_arm)
-        if not args.device == "cuda":
-            env_variable.reset()
-            env_variable.render()
+        # if not device == "cuda":
+        #     env_variable.reset()
+        #     env_variable.render()
         if args.print:
-            print(f"guardrail threshold = {threshold}")
+            print(colored(f"🎯 Guardrail threshold = {threshold}", "yellow"))
 
         for guardrail in tqdm(
             ["none", "cheating", "posterior", "iid"], desc="guardrail"
@@ -92,6 +95,7 @@ def main(args):
                 beta=args.beta,
                 guardrail=guardrail,
                 threshold=threshold,
+                device=device,
             )
             guardrail_results = utils.run_episodes(agent, args)
             reward_mean, reward_error, deaths_mean, deaths_error, extras = (
@@ -109,13 +113,18 @@ def main(args):
             )
 
         for alpha in tqdm(args.alphas, desc="alpha"):
-            for guardrail in ["non-iid", "new-non-iid"]:
+            guardrails = ["non-iid"]
+            if args.include_new_non_iid:
+                guardrails.append("new-non-iid")
+                
+            for guardrail in guardrails:
                 agent = agents.Boltzmann(
                     env=env_variable,
                     beta=args.beta,
                     alpha=alpha,
                     guardrail=guardrail,
                     threshold=threshold,
+                    device=device,
                 )
                 assert agent.guardrail.alpha == alpha
                 guardrail_results = utils.run_episodes(agent, args)
@@ -137,7 +146,7 @@ def main(args):
 
         end_time = time.time()
         execution_time = end_time - start_time
-        print(f"Execution time: {execution_time:.2f} seconds")
+        print(colored(f"⏱️  Execution time: {execution_time:.2f} seconds", "yellow"))
         results["execution_time"] = execution_time
 
     os.makedirs(os.path.dirname(args.save_path), exist_ok=True)

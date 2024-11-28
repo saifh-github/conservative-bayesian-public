@@ -10,6 +10,7 @@ import wandb
 import sys
 import pandas as pd
 import numpy as np
+from termcolor import colored
 
 sys.path.insert(0, os.path.abspath("../../"))
 sys.path.insert(0, os.path.abspath("../"))
@@ -144,6 +145,17 @@ def update_live_wandb_table(threshold, results, baseline_data, processed_alphas)
 
 @hydra.main(version_base=None, config_path="./configs", config_name="config")
 def main(cfg: DictConfig):
+    device = utils.get_device(cfg.device)
+    print(colored(f"🖥️  Using device: {device}", "cyan"))
+    t.set_default_device(t.device(device))
+    
+    if device == "cuda":
+        assert t.cuda.is_available(), "CUDA not available. Use another device option."
+    elif device == "mps":
+        assert hasattr(t.backends, "mps") and t.backends.mps.is_available(), "MPS not available. Use another device option."
+    else:
+        print(colored(f"🖥️  Running on {device}", "cyan"))
+
     # Calculate alphas based on d_arm
     if cfg.experiment.alphas == []:
         P_i_star = 1 / (2**cfg.environment.d_arm)
@@ -160,15 +172,7 @@ def main(cfg: DictConfig):
     wandb.log({"hyperparams_string": hyperparams_string})
     wandb.log({"hyperparams_short": hyperparams_string.replace("harm estimates:: ", "")})
 
-    t.set_default_device(t.device(cfg.device))
     t.set_grad_enabled(False)
-
-    if cfg.device == "cuda":
-        assert (
-            t.cuda.is_available()
-        ), "Cuda not available. Use --device='cpu', or get cuda working."
-    else:
-        print("Running on CPU. Use --device='cuda' for GPU.")
 
     results = {"cfg": cfg, "hyperparams_string": hyperparams_string}
     results["args"] = {
@@ -203,7 +207,7 @@ def main(cfg: DictConfig):
             env_variable.reset()
             env_variable.render()
         if cfg.print:
-            print(f"\nGuardrail threshold = {threshold}")
+            print(colored(f"\n🎯 Guardrail threshold = {threshold}", "yellow"))
 
         # Process baselines once per threshold
         baseline_data = []
@@ -340,7 +344,7 @@ def main(cfg: DictConfig):
     wandb.log({"custom_score/average_custom_metric": average_custom_metric})
 
     if cfg.print:
-        print(f"Average custom metric for new-non-iid: {average_custom_metric}")
+        print(colored(f"📊 Average custom metric for new-non-iid: {average_custom_metric}", "green"))
         utils.print_results_table(results)
     execution_time = end_time - start_time
     results["execution_time"] = execution_time
@@ -348,7 +352,7 @@ def main(cfg: DictConfig):
         "%H:%M:%S", time.gmtime(execution_time)
     )
     print(
-        f"execution time was {round(execution_time)} seconds, or {round(execution_time/60)} minutes, or {round(execution_time/3600, ndigits=3)} hours for {results['args']['n_episodes']} episodes"
+        colored(f"⏱️  Execution time: {round(execution_time)} seconds, or {round(execution_time/60)} minutes, or {round(execution_time/3600, ndigits=3)} hours for {results['args']['n_episodes']} episodes", "yellow")
     )
     results["execution_time_readable"] = execution_time_hours_minutes_seconds
     wandb.log({"execution_time": execution_time_hours_minutes_seconds})
@@ -366,7 +370,7 @@ def main(cfg: DictConfig):
 
     # Generate and log matplotlib plots on WandB
     print(
-        f"Results saved locally to {save_path} 📁 and uploaded to W&B as an artifact. ✅"
+        colored(f"📂 Results saved locally to {save_path} and uploaded to W&B as an artifact. ✅", "green")
     )
 
     plot_definitions = [
@@ -396,7 +400,7 @@ def main(cfg: DictConfig):
         fig = plot["function"](results, **plot["kwargs"])
         if fig:
             wandb.log({f"plot/{plot['name']}": wandb.Image(fig)})
-            print(f"Uploaded {plot['name']} to WandB. 🎉")
+            print(colored(f"📊 Uploaded {plot['name']} to WandB. 🎉", "green"))
 
 if __name__ == "__main__":
     main()
