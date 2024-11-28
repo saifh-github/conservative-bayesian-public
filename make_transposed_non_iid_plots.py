@@ -7,6 +7,7 @@ from utils import plotting
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--timestamp", default="latest")
+parser.add_argument("--config", default="configs/config.yaml", help="Path to config file")
 
 
 def get_latest(directory="results/non_iid"):
@@ -17,6 +18,13 @@ def get_latest(directory="results/non_iid"):
 
 
 def main(args):
+    plot_config = None
+    if args.config and os.path.exists(args.config):
+        import yaml
+        with open(args.config) as f:
+            cfg = yaml.safe_load(f)
+        plot_config = plotting.PlotConfig.from_config(cfg)
+    
     if args.timestamp == "latest":
         results_dir = get_latest()
     else:
@@ -34,11 +42,11 @@ def main(args):
 
     save_path = os.path.join(results_dir, "deaths_and_rewards_vs_alpha.pdf")
     plotting.plot_deaths_and_reward_vs_alpha_2x3(
-        results, plot_error_bars=False, save_path=save_path, save_format="pdf"
+        results, plot_error_bars=False, save_path=save_path, save_format="pdf", plot_config=plot_config
     )
     save_path = os.path.join(results_dir, "deaths_and_rewards_vs_alpha_error.pdf")
     plotting.plot_deaths_and_reward_vs_alpha_2x3(
-        results, plot_error_bars=True, save_path=save_path, save_format="pdf"
+        results, plot_error_bars=True, save_path=save_path, save_format="pdf", plot_config=plot_config
     )
     print(f"Plot saved to {save_path}")
 
