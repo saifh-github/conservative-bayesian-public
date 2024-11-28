@@ -12,7 +12,7 @@ from agents.guardrails import (
 )
 import einops
 import scipy
-
+import utils.utils as utils
 
 class Agent:
     def __init__(self, env_id=None, env=None):
@@ -40,9 +40,11 @@ class Bayesian(Agent):
         threshold=0.05,
         alpha=None,
         guardrail_params=None,
+        device="auto",
     ):
         super().__init__(env_id, env)
         self.name = name
+        self.device = utils.get_device(device)
 
         if guardrail == "new-non-iid":
             self.guardrail_type = guardrail
@@ -208,6 +210,7 @@ class Boltzmann(Bayesian):
         beta=0.5,
         alpha=None,
         guardrail_params=None,
+        device="auto"
     ):
         super().__init__(
             env_id=env_id,
@@ -217,8 +220,10 @@ class Boltzmann(Bayesian):
             threshold=threshold,
             alpha=alpha,
             guardrail_params=guardrail_params,
+            device=device
         )
         self.beta = beta
+        self.device = utils.get_device(device)
 
     def get_action(self):
 
@@ -248,12 +253,21 @@ class Uniform(Bayesian):
         env_id=None,
         env=None,
         name="Uniform",
+        guardrail=None,
+        threshold=None,
         alpha=None,
+        device="auto",
     ):
         super().__init__(
-            env_id=env_id, env=env, name=name, guardrail=None, threshold=None
+            env_id=env_id, 
+            env=env, 
+            name=name, 
+            guardrail=guardrail,
+            threshold=threshold,
+            device=device,
+            alpha=alpha
         )
-
+        self.device = utils.get_device(device)
         self.cheating_guardrail = CheatingGuardrail(self, None)
         self.non_iid_guardrail = NonIidGuardrail(self, None, alpha)
 
@@ -264,8 +278,7 @@ class Uniform(Bayesian):
         self,
         episode_length,
     ):
-
-        actions = t.tensor(t.arange(self.env.unwrapped.n_arm))
+        actions = t.arange(self.env.unwrapped.n_arm, device=self.device)
         self.reset()
         assert t.all(self.log_posterior == self.initial_log_prior)
         self.env.reset()
@@ -281,9 +294,8 @@ class Uniform(Bayesian):
         fifty_fifties_harm_estimates = []
 
         for i in range(episode_length):
-
             action = self.get_action()
-            non_iid_estimate = self.non_iid_guardrail.harm_estimate(action)
+            non_iid_estimate = self.guardrail.harm_estimate(action)
             ground_truth = self.cheating_guardrail.harm_estimate(action)
             estimates += 1
             if non_iid_estimate >= ground_truth:
@@ -291,7 +303,7 @@ class Uniform(Bayesian):
 
             for fifty_fifty in actions[fifty_fifty_mask]:
                 fifty_fifty_harm_estimate = float(
-                    self.non_iid_guardrail.harm_estimate(fifty_fifty)
+                    self.guardrail.harm_estimate(fifty_fifty)
                 )
                 fifty_fifties_harm_estimates.append(fifty_fifty_harm_estimate)
 
