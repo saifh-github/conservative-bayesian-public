@@ -199,7 +199,7 @@ class NewNonIidGuardrail(Guardrail):
         if posterior is None:
             posterior = t.exp(self.agent.log_posterior)
         max_indices = t.argmax(posterior)
-        m_alpha = t.zeros_like(posterior, dtype=t.bool)
+        m_alpha = t.zeros_like(posterior, dtype=t.bool, device=posterior.device)
         if max_indices.dim() == 0:
             m_alpha[max_indices.item()] = True
         else:
