@@ -16,6 +16,9 @@ dependencies:
   - einops~=0.8
   - pip
   - black
+  - hydra-core
+  - wandb
+  - termcolor
   - pip:
     - torch~=2.3.1
     - torchvision

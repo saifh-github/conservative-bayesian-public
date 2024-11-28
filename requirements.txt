@@ -1,0 +1,16 @@
+numpy<2.0
+pandas
+scikit-learn
+matplotlib
+gymnasium
+pygame
+pytest
+plotly
+tqdm
+einops
+black
+gymnasium[classic-control]
+wandb
+hydra-core
+ray
+termcolor
