@@ -36,7 +36,7 @@ parser.add_argument("--d_arm", default=10, type=int)
 # hyperparameters we vary in the experiment
 parser.add_argument(
     "--alphas",
-    default=[1e-5, 3e-5, 1e-4, 3e-4, 1e-2, 3e-2, 1e-1, 3e-1, 1.0],
+    default=[],
     type=list,
 )
 
@@ -44,10 +44,18 @@ parser.add_argument("--guardrail_thresholds", default=[1e-3, 1e-2, 1e-1], type=l
 
 
 def main(args):
+    # Calculate alphas based on d_arm
+    if args.alphas == []:
+        P_i_star = 1 / (2 ** args.d_arm)
+        delta = 0.1  # 1-delta = 90% probability for Prop. 4.6
+        max_alpha = P_i_star * delta  # α ≤ δ * P(i*)
+        args.alphas = [max_alpha * (0.1 ** i) for i in range(9)]  # log-spaced values
     start_time = time.time()
     args.save_path = f"results/non_iid/{args.n_episodes}/results.pkl.gz"
 
     t.set_default_device(t.device(args.device))
+    t.set_grad_enabled(False)
+
     if args.device == "cuda":
         assert (
             t.cuda.is_available()
@@ -59,15 +67,20 @@ def main(args):
     results["args"] = args
     for guardrail in ["none", "cheating", "posterior", "iid"]:
         results[guardrail] = []
-    results["non_iid"] = {}
+    results["non-iid"] = {}
+    results["new-non-iid"] = {}
     for alpha in args.alphas:
-        results["non_iid"][alpha] = []
+        results["non-iid"][alpha] = []
+        results["new-non-iid"][alpha] = []
 
     for threshold in tqdm(args.guardrail_thresholds, desc="guardrail threshold"):
-        env = utils.make_env(args, d_arm=args.d_arm)
+        # env_fixed = utils.make_env(
+        #     args, d_arm=args.d_arm, fixed_explosion_threshold=10
+        # )
+        env_variable = utils.make_env(args, d_arm=args.d_arm)
         if not args.device == "cuda":
-            env.reset()
-            env.render()
+            env_variable.reset()
+            env_variable.render()
         if args.print:
             print(f"guardrail threshold = {threshold}")
 
@@ -75,7 +88,7 @@ def main(args):
             ["none", "cheating", "posterior", "iid"], desc="guardrail"
         ):
             agent = agents.Boltzmann(
-                env=env,
+                env=env_variable,
                 beta=args.beta,
                 guardrail=guardrail,
                 threshold=threshold,
@@ -96,28 +109,29 @@ def main(args):
             )
 
         for alpha in tqdm(args.alphas, desc="alpha"):
-            agent = agents.Boltzmann(
-                env=env,
-                beta=args.beta,
-                alpha=alpha,
-                guardrail="non-iid",
-                threshold=threshold,
-            )
-            assert agent.guardrail.alpha == alpha
-            guardrail_results = utils.run_episodes(agent, args)
-            reward_mean, reward_error, deaths_mean, deaths_error, extras = (
-                guardrail_results
-            )
-            results["non_iid"][alpha].append(
-                (
-                    threshold,
-                    reward_mean,
-                    reward_error,
-                    deaths_mean,
-                    deaths_error,
-                    extras,
+            for guardrail in ["non-iid", "new-non-iid"]:
+                agent = agents.Boltzmann(
+                    env=env_variable,
+                    beta=args.beta,
+                    alpha=alpha,
+                    guardrail=guardrail,
+                    threshold=threshold,
                 )
-            )
+                assert agent.guardrail.alpha == alpha
+                guardrail_results = utils.run_episodes(agent, args)
+                reward_mean, reward_error, deaths_mean, deaths_error, extras = (
+                    guardrail_results
+                )
+                results[guardrail][alpha].append(
+                    (
+                        threshold,
+                        reward_mean,
+                        reward_error,
+                        deaths_mean,
+                        deaths_error,
+                        extras,
+                    )
+                )
 
         utils.print_results_table(results)
 

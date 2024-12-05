@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import torch as t
 import numpy as np
+import textwrap
 
 
 def plot_deaths_and_reward_vs_alpha_2x3(
@@ -107,14 +108,16 @@ def plot_deaths_and_reward_vs_alpha(
         "cheating": 0.9,
     }
 
-    fig, axes = plt.subplots(n_plots, 2, figsize=(15, 5 * n_plots), squeeze=False)
+    fig, axes = plt.subplots(2, 3, figsize=(20, 12), squeeze=False)
 
     def format_to_1sf(x, pos):
         return f"{x:.1g}"
 
     for i, threshold in enumerate([res[0] for res in results["posterior"]]):
         for j, metric in enumerate(["reward", "deaths"]):
-            ax = axes[i, j]
+            row = j
+            col = i
+            ax = axes[row, col]
 
             # Plot non-iid data
             alphas = sorted(results["non_iid"].keys())
@@ -161,10 +164,12 @@ def plot_deaths_and_reward_vs_alpha(
                         capsize=5,
                     )
 
-            ax.set_xlabel("Alpha")
-            ax.set_ylabel("Reward" if metric == "reward" else "Deaths")
-            ax.set_title(f"{metric.capitalize()} vs Alpha (C = {threshold})")
-            ax.legend()
+            ax.set_xlabel("Alpha", fontsize=18)
+            ax.set_ylabel("Reward" if metric == "reward" else "Deaths", fontsize=18)
+            ax.set_title(
+                f"{metric.capitalize()} vs Alpha (C = {threshold})", fontsize=18
+            )
+            ax.legend(fontsize=12)
 
             # Remove gridlines
             ax.grid(False)
@@ -182,6 +187,245 @@ def plot_deaths_and_reward_vs_alpha(
     else:
         plt.show()
 
+
+def plot_deaths_and_reward_vs_alpha(
+    results, plot_error_bars=True, save_path=None, save_format="pdf", return_fig=False, include_custom_metric=False, print_hyperparams_string=False
+):
+    n_plots = len(results["posterior"])
+    guardrails_excluding_non_iid = ["iid", "posterior", "cheating"]
+    colors = {
+        "iid": "green",
+        "posterior": "blue",
+        "cheating": "purple",
+        "non-iid": "orange",
+        "new-non-iid": "magenta",
+    }
+    error_bar_positions = {
+        "iid": 0.3,
+        "posterior": 0.6,
+        "cheating": 0.9,
+    }
+
+    num_col = 3 if include_custom_metric else 2
+
+    fig, axes = plt.subplots(n_plots, num_col, figsize=(21, 5 * n_plots), squeeze=False)
+
+    def format_to_1sf(x, pos):
+        return f"{x:.1g}"
+
+    metrics_list = ["reward", "deaths"]
+    if include_custom_metric:
+        metrics_list.append("custom_metric")
+
+    for i, guardrail_threshold in enumerate([res[0] for res in results["posterior"]]):
+        for j, metric in enumerate(metrics_list):
+            ax = axes[i, j]
+
+            # Plot non-iid data
+            for guardrail_name in ["non-iid", "new-non-iid"]:
+                alphas = sorted(results[guardrail_name].keys())
+                non_iid_data = [
+                    next(
+                        res
+                        for res in results[guardrail_name][alpha]
+                        if res[0] == guardrail_threshold
+                    )
+                    for alpha in alphas
+                ]
+
+                if metric == "reward":
+                    y = [res[1] for res in non_iid_data]
+                    y_err = [res[2] for res in non_iid_data]
+                elif metric == "deaths":
+                    y = [res[3] for res in non_iid_data]
+                    y_err = [res[4] for res in non_iid_data]
+                elif metric == "custom_metric":
+                    y = [res[6] for res in non_iid_data]
+                    y_err = None
+
+                # Use range(len(alphas)) for x-axis to space points evenly
+                ax.errorbar(
+                    range(len(alphas)),
+                    y,
+                    yerr=y_err,
+                    fmt="-o",
+                    color=colors[guardrail_name],
+                    label="Prop 4.6" + (" (new)" if guardrail_name == "new-non-iid" else ""),
+                    capsize=5,
+                )
+
+            # Plot other guardrails as dashed lines
+            labels = ["Prop 3.4", "Posterior", "Cheating"]
+            for k, guardrail in enumerate(guardrails_excluding_non_iid):
+                data = next(res for res in results[guardrail] if res[0] == guardrail_threshold)
+
+                if metric == "reward":
+                    value = data[1]
+                    error = data[2]
+                elif metric == "deaths":
+                    value = data[3]
+                    error = data[4]
+                else:
+                    value = data[6]
+                    error = None
+
+                ax.axhline(
+                    y=value, color=colors[guardrail], linestyle="--", label=labels[k]
+                )
+                if plot_error_bars:
+                    ax.errorbar(
+                        error_bar_positions[guardrail],
+                        value,
+                        yerr=error,
+                        fmt="none",
+                        ecolor=colors[guardrail],
+                        capsize=5,
+                    )
+
+            ax.set_xlabel("Alpha")
+            if metric == "reward":
+                ax.set_ylabel("Reward")
+            elif metric == "deaths":
+                ax.set_ylabel("Deaths")
+            elif metric == "custom_metric":
+                ax.set_ylabel("Custom Metric")
+            ax.set_title(f"{metric.capitalize()} vs Alpha (C = {guardrail_threshold})")
+            ax.legend()
+
+            # Remove gridlines
+            ax.grid(False)
+
+            # Set x-ticks to match non-iid alpha values and format to 1 significant figure
+            ax.set_xticks(range(len(alphas)))
+            ax.set_xticklabels([format_to_1sf(alpha, None) for alpha in alphas])
+            plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+    # print the hyperparameters string
+    if print_hyperparams_string:
+        fig.suptitle(f"Hyperparameters:\n{textwrap.fill(results['hyperparams_string'], 100)}", fontsize=10)
+        fig.subplots_adjust(top=0.90)
+
+    plt.tight_layout()
+
+    if return_fig:
+        return fig
+    if save_path:
+        plt.savefig(save_path, format=save_format, bbox_inches="tight")
+        plt.close()
+    else:
+        plt.show()
+
+
+def fig_deaths_reward_custom_metric_vs_alpha_at_threshold(
+    results, guardrail_threshold, plot_error_bars=True, print_hyperparams_string=True
+):
+    guardrails_excluding_non_iid = ["iid", "posterior", "cheating"]
+    colors = {
+        "iid": "green",
+        "posterior": "blue",
+        "cheating": "purple",
+        "non-iid": "orange",
+        "new-non-iid": "magenta",
+    }
+    error_bar_positions = {
+        "iid": 0.3,
+        "posterior": 0.6,
+        "cheating": 0.9,
+    }
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5), squeeze=False)
+
+    def format_to_1sf(x, pos):
+        return f"{x:.1g}"
+
+    for j, metric in enumerate(["reward", "deaths", "custom_metric"]):
+        ax = axes[0, j]
+
+        # Plot non-iid data
+        for guardrail_name in ["non-iid", "new-non-iid"]:
+            alphas = sorted(results[guardrail_name].keys())
+            non_iid_data = [
+                next(
+                    res
+                    for res in results[guardrail_name][alpha]
+                    if res[0] == guardrail_threshold
+                )
+                for alpha in alphas
+            ]
+
+            if metric == "reward":
+                y = [res[1] for res in non_iid_data]
+                y_err = [res[2] for res in non_iid_data]
+            elif metric == "deaths":
+                y = [res[3] for res in non_iid_data]
+                y_err = [res[4] for res in non_iid_data]
+            elif metric == "custom_metric":
+                y = [res[6] for res in non_iid_data]
+                y_err = None
+
+            # Use range(len(alphas)) for x-axis to space points evenly
+            ax.errorbar(
+                range(len(alphas)),
+                y,
+                yerr=y_err,
+                fmt="-o",
+                color=colors[guardrail_name],
+                label="Prop 4.6" + (" (new)" if guardrail_name == "new-non-iid" else ""),
+                capsize=5,
+            )
+
+        # Plot other guardrails as dashed lines
+        labels = ["Prop 3.4", "Posterior", "Cheating"]
+        for k, guardrail in enumerate(guardrails_excluding_non_iid):
+            data = next(res for res in results[guardrail] if res[0] == guardrail_threshold)
+            if metric == "reward":
+                value = data[1]
+                error = data[2]
+            elif metric == "deaths":
+                value = data[3]
+                error = data[4]
+            else:
+                value = data[6]
+                error = None
+
+            ax.axhline(
+                y=value, color=colors[guardrail], linestyle="--", label=labels[k]
+            )
+            if plot_error_bars:
+                ax.errorbar(
+                    error_bar_positions[guardrail],
+                    value,
+                    yerr=error,
+                    fmt="none",
+                    ecolor=colors[guardrail],
+                    capsize=5,
+                )
+
+        ax.set_xlabel("Alpha")
+        if metric == "reward":
+            ax.set_ylabel("Reward")
+        elif metric == "deaths":
+            ax.set_ylabel("Deaths")
+        elif metric == "custom_metric":
+            ax.set_ylabel("Custom Metric")
+        ax.set_title(f"{metric.capitalize()} vs Alpha (C = {guardrail_threshold})")
+        ax.legend()
+
+        # Remove gridlines
+        ax.grid(False)
+
+        # Set x-ticks to match non-iid alpha values and format to 1 significant figure
+        ax.set_xticks(range(len(alphas)))
+        ax.set_xticklabels([format_to_1sf(alpha, None) for alpha in alphas])
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+    if print_hyperparams_string:
+        fig.suptitle(f"Hyperparameters:\n{textwrap.fill(results['hyperparams_string'], 100)}", fontsize=10)
+        fig.subplots_adjust(top=0.85)
+
+    plt.tight_layout()
+
+    return fig
 
 def plot_overestimation(
     results, plot_error_bars=True, save_path=None, save_format="pdf"
