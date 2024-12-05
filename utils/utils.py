@@ -5,6 +5,7 @@ import gymnasium as gym
 import agents.agents as agents
 from envs.exploding_bandit import ExplodingBandit
 
+
 device = t.device("cuda" if t.cuda.is_available() else "cpu")
 
 def make_env(cfg):
