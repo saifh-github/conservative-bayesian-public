@@ -8,6 +8,7 @@ from agents.guardrails import (
     PosteriorGuardrail,
     IidGuardrail,
     NonIidGuardrail,
+    NewNonIidGuardrail,
 )
 import einops
 import scipy
@@ -38,19 +39,35 @@ class Bayesian(Agent):
         guardrail=None,
         threshold=0.05,
         alpha=None,
+        guardrail_params=None,
     ):
         super().__init__(env_id, env)
         self.name = name
 
-        guardrails = {
-            "cheating": CheatingGuardrail(self, threshold),
-            "posterior": PosteriorGuardrail(self, threshold),
-            "iid": IidGuardrail(self, threshold),
-            "non-iid": NonIidGuardrail(self, threshold, alpha),
-            "none": None,
-        }
+        if guardrail == "new-non-iid":
+            self.guardrail_type = guardrail
+            self.guardrail = NewNonIidGuardrail(
+                self,
+                threshold,
+                alpha,
+                mean_type=guardrail_params.mean_type,
+                posterior_increases=guardrail_params.posterior_increases,
+                softmax_temperature=guardrail_params.softmax_temperature,
+                power_mean_exponent=guardrail_params.power_mean_exponent,
+                quantile=guardrail_params.quantile,
+                harm_estimates_weights=guardrail_params.harm_estimates_weights,
+            )
+        else:
+            guardrails = {
+                "cheating": CheatingGuardrail(self, threshold),
+                "posterior": PosteriorGuardrail(self, threshold),
+                "iid": IidGuardrail(self, threshold),
+                "non-iid": NonIidGuardrail(self, threshold, alpha),
+                "none": None,
+            }
 
-        self.guardrail = guardrails.get(guardrail)
+            self.guardrail_type = guardrail
+            self.guardrail = guardrails.get(guardrail)
 
         if self.guardrail is not None:
             self.name += f"+{guardrail}Guardrail"
@@ -63,15 +80,17 @@ class Bayesian(Agent):
 
         # The agent is given the correct prior over the reward weights, which is the uniform over {0, ..., k-1}^d.
         # There are k^d possible reward weight vectors, which we index from 0 to k^d - 1.
-        prior = t.ones(self.k**self.d_arm) / (self.k**self.d_arm)
-        assert t.isclose(prior.sum(), t.tensor(1.0))
-        self.log_prior = t.log(prior)
-        ranges = [t.arange(self.k) for _ in range(self.d_arm)]
+        prior = t.ones(self.k**self.d_arm, dtype=t.float32) / (self.k**self.d_arm)
+        assert t.isclose(prior.sum(), t.tensor(1.0, dtype=t.float32))
+        self.initial_log_prior = t.log(prior)
+        ranges = [t.arange(self.k, dtype=t.float32) for _ in range(self.d_arm)]
         self.hypotheses = t.cartesian_prod(*ranges)
-        self.log_posterior = self.log_prior.clone()
+        self.log_prior = self.initial_log_prior.clone()
+        self.log_posterior = self.initial_log_prior.clone()
 
     def reset(self):
-        self.log_posterior = self.log_prior
+        self.log_prior = self.initial_log_prior.clone()
+        self.log_posterior = self.initial_log_prior.clone()
 
     def update_beliefs(self, action, reward):
         features = self.env.unwrapped.arm_features[action]
@@ -81,12 +100,12 @@ class Bayesian(Agent):
             "n_hypotheses d_arm, d_arm -> n_hypotheses",
         )
 
-        log_prior = self.log_posterior
+        self.log_prior = self.log_posterior.clone()
         log_likelihoods = t.distributions.Normal(
             loc=hypothesised_reward_means, scale=self.env.unwrapped.sigma_r
         ).log_prob(t.tensor(reward))
 
-        unnormalised_log_posterior = log_prior + log_likelihoods
+        unnormalised_log_posterior = self.log_prior + log_likelihoods
         self.log_posterior = unnormalised_log_posterior - t.logsumexp(
             unnormalised_log_posterior, dim=0
         )  # normalise in logspace
@@ -188,6 +207,7 @@ class Boltzmann(Bayesian):
         threshold=0.05,
         beta=0.5,
         alpha=None,
+        guardrail_params=None,
     ):
         super().__init__(
             env_id=env_id,
@@ -196,6 +216,7 @@ class Boltzmann(Bayesian):
             guardrail=guardrail,
             threshold=threshold,
             alpha=alpha,
+            guardrail_params=guardrail_params,
         )
         self.beta = beta
 
@@ -203,15 +224,9 @@ class Boltzmann(Bayesian):
 
         features = self.env.unwrapped.arm_features
         posterior = t.exp(self.log_posterior)
-        posterior_mean = einops.einsum(
-            posterior,
-            self.hypotheses.to(t.float32),
-            "n_hypotheses, n_hypotheses d_arm  -> d_arm",
-        )
+        posterior_mean = t.mv(self.hypotheses.T, posterior) # n_hypotheses d_arm, n_hypotheses  -> d_arm
 
-        estimated_reward_means = einops.einsum(
-            features.to(t.float32), posterior_mean, "n_arm d_arm, d_arm -> n_arm"
-        )
+        estimated_reward_means = t.mv(features, posterior_mean) # n_arm d_arm, d_arm -> n_arm
         probs = t.softmax(self.beta * estimated_reward_means, dim=0)
         probs[self.actions_rejected_this_timestep] = (
             0  # so we don't choose an action that's already been rejected
@@ -252,7 +267,7 @@ class Uniform(Bayesian):
 
         actions = t.tensor(t.arange(self.env.unwrapped.n_arm))
         self.reset()
-        assert t.all(self.log_posterior == self.log_prior)
+        assert t.all(self.log_posterior == self.initial_log_prior)
         self.env.reset()
         fifty_fifty_mask = (
             self.env.unwrapped.reward_means == self.env.unwrapped.explosion_threshold
