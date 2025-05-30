@@ -278,7 +278,9 @@ class Uniform(Bayesian):
         self,
         episode_length,
     ):
+
         actions = t.arange(self.env.unwrapped.n_arm, device=self.device)
+
         self.reset()
         assert t.all(self.log_posterior == self.initial_log_prior)
         self.env.reset()
@@ -303,7 +305,10 @@ class Uniform(Bayesian):
 
             for fifty_fifty in actions[fifty_fifty_mask]:
                 fifty_fifty_harm_estimate = float(
+
                     self.guardrail.harm_estimate(fifty_fifty)
+
+
                 )
                 fifty_fifties_harm_estimates.append(fifty_fifty_harm_estimate)
 

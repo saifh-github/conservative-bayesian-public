@@ -58,8 +58,10 @@ def format_to_1sf(x, pos):
     else:
         return f"${mantissa:.1f}\\cdot 10^{{{exponent}}}$"
 
+
 def plot_deaths_and_reward_vs_alpha_2x3(
     results, plot_error_bars=True, save_path=None, save_format="pdf", plot_config: Optional[PlotConfig] = None
+
 ):
     if plot_config is None:
         plot_config = PlotConfig()
@@ -108,7 +110,7 @@ def plot_deaths_and_reward_vs_alpha_2x3(
                 yerr=y_err,
                 fmt="-o",
                 color="orange",
-                label="Prop 4.6",
+                label="Prop 4.5",
                 capsize=5,
                 markersize=plot_config.marker_size,
                 linewidth=plot_config.line_width,
@@ -116,7 +118,7 @@ def plot_deaths_and_reward_vs_alpha_2x3(
             )
 
             # Plot other guardrails as dashed lines
-            labels = ["Prop 3.4", "Posterior", "Cheating"]
+            labels = ["Prop 3.3", "Posterior", "Cheating"]
             for k, guardrail in enumerate(guardrails):
                 data = next(res for res in results[guardrail] if res[0] == threshold)
                 value = data[1] if metric == "reward" else data[3]
@@ -241,7 +243,7 @@ def plot_deaths_and_reward_vs_alpha(
                     yerr=y_err if plot_error_bars else None,
                     fmt="-o",
                     color=colors[guardrail_name],
-                    label="Prop 4.6" + (" (new)" if guardrail_name == "new-non-iid" else ""),
+                    label="Prop 4.5" + (" (new)" if guardrail_name == "new-non-iid" else ""),
                     capsize=5,
                     markersize=plot_config.marker_size,
                     linewidth=plot_config.line_width,
@@ -249,7 +251,7 @@ def plot_deaths_and_reward_vs_alpha(
                 )
 
             # Plot other guardrails as dashed lines
-            labels = ["Prop 3.4", "Posterior", "Cheating"]
+            labels = ["Prop 3.3", "Posterior", "Cheating"]
             for k, guardrail in enumerate(guardrails_excluding_non_iid):
                 data = next(res for res in results[guardrail] if res[0] == guardrail_threshold)
 
@@ -376,7 +378,8 @@ def fig_deaths_reward_custom_metric_vs_alpha_at_threshold(
                 yerr=y_err if plot_error_bars else None,
                 fmt="-o",
                 color=colors[guardrail_name],
-                label="Prop 4.6" + (" (new)" if guardrail_name == "new-non-iid" else ""),
+                label="Prop 
+              " + (" (new)" if guardrail_name == "new-non-iid" else ""),
                 capsize=5,
                 markersize=plot_config.marker_size,
                 linewidth=plot_config.line_width,
@@ -384,7 +387,7 @@ def fig_deaths_reward_custom_metric_vs_alpha_at_threshold(
             )
 
         # Plot other guardrails as dashed lines
-        labels = ["Prop 3.4", "Posterior", "Cheating"]
+        labels = ["Prop 3.3", "Posterior", "Cheating"]
         for k, guardrail in enumerate(guardrails_excluding_non_iid):
             data = next(res for res in results[guardrail] if res[0] == guardrail_threshold)
             if metric == "reward":
@@ -487,11 +490,13 @@ def plot_overestimation(
         linewidth=plot_config.line_width
     )
 
+
     ax.set_xlabel(r"$\alpha$", fontsize=plot_config.axis_label_fontsize)
     ax.set_ylabel("Overestimation Frequency", fontsize=plot_config.axis_label_fontsize)
     ax.legend(fontsize=plot_config.legend_fontsize)
     ax.tick_params(axis='both', which='major', labelsize=plot_config.tick_fontsize)
     ax.grid(plot_config.grid)
+
 
     # Set x-ticks to match alpha values and format to 1 significant figure
     ax.set_xticks(range(len(alphas)))
@@ -501,6 +506,7 @@ def plot_overestimation(
     # Use scientific notation for y-axis if values are very small
     ax.yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
     ax.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+
     ax.legend(fontsize=plot_config.legend_fontsize)
 
 
@@ -577,6 +583,7 @@ def box_plot(
     for patch in bp["boxes"]:
         patch.set(facecolor="lightblue", alpha=0.7)
 
+
     ax.set_xlabel(r"$\alpha$", fontsize=plot_config.axis_label_fontsize)
     ax.set_ylabel("Harm Estimate", fontsize=plot_config.axis_label_fontsize)
     ax.axhline(
@@ -587,14 +594,17 @@ def box_plot(
         linewidth=plot_config.line_width
     )
 
+
     # Set x-ticks to match alpha values
     ax.set_xticks(range(1, len(alphas) + 1))
     ax.set_xticklabels([format_to_1sf(alpha, None) for alpha in alphas])
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
 
+
     ax.legend(fontsize=plot_config.legend_fontsize)
     ax.tick_params(axis='both', which='major', labelsize=plot_config.tick_fontsize)
     ax.grid(plot_config.grid)
+
 
     plt.tight_layout()
 

@@ -3,12 +3,14 @@ import plotly.graph_objects as go
 import torch as t
 import gymnasium as gym
 import agents.agents as agents
+
 from envs.exploding_bandit import ExplodingBandit
 from torch.multiprocessing import Pool, cpu_count
 import functools
 from gymnasium.vector import AsyncVectorEnv
 import ray
 from termcolor import colored
+
 
 def get_device(device_arg):
     if device_arg == "auto":
@@ -174,6 +176,7 @@ def run_tightness_episodes(agent, cfg):
     if not ray.is_initialized():
         ray.init()
 
+
     device = agent.device if hasattr(agent, 'device') else 'cpu'
     if device == 'mps':
         optimize_mps()
@@ -211,11 +214,14 @@ def run_tightness_episodes(agent, cfg):
     
     results = ray.get(futures)
     
+
     overestimates, harm_estimates = [], []
     for ep_overestimates, ep_harm_estimates in results:
         overestimates.append(ep_overestimates)
+
         harm_estimates.extend(ep_harm_estimates)
     
+
     overestimate_mean, overestimate_error = get_mean_and_error(overestimates)
     return overestimate_mean, overestimate_error, harm_estimates
 
