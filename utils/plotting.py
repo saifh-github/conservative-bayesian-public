@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'Times New Roman'
 plt.rcParams['mathtext.fontset'] = 'cm'
-plt.rcParams['text.usetex'] = True 
+# plt.rcParams['text.usetex'] = True #uncomment to use latex, comment to use matplotlib's built-in renderer
 
 import torch as t
 import numpy as np
