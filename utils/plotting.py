@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'Times New Roman'
 plt.rcParams['mathtext.fontset'] = 'cm'
-plt.rcParams['text.usetex'] = True
+plt.rcParams['text.usetex'] = True 
 
 import torch as t
 import numpy as np
@@ -378,8 +378,7 @@ def fig_deaths_reward_custom_metric_vs_alpha_at_threshold(
                 yerr=y_err if plot_error_bars else None,
                 fmt="-o",
                 color=colors[guardrail_name],
-                label="Prop 
-              " + (" (new)" if guardrail_name == "new-non-iid" else ""),
+                label="Prop 4.5" + (" (new)" if guardrail_name == "new-non-iid" else ""),
                 capsize=5,
                 markersize=plot_config.marker_size,
                 linewidth=plot_config.line_width,
