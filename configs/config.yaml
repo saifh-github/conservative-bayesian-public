@@ -1,0 +1,58 @@
+defaults:
+  - _self_
+
+device: "auto"
+save_path: "results/non_iid/results.pkl.gz"
+print: true
+
+# Experiment
+experiment:
+  n_episodes: 250
+  episode_length: 25
+  guardrail_thresholds: [0.001, 0.01, 0.1]
+  guardrail_baselines: ["cheating", "none", "posterior", "iid"]
+  alphas: [1e-5, 3e-5, 1e-4, 3e-4, 1e-2, 3e-2, 1e-1, 3e-1, 1.0] # if [], will be calculated automatically
+  # Actor configuration
+  max_actor_fraction: 0.70  # Fraction of CPU count to use as maximum actors
+  n_actors: null  # If null, will be calculated based on max_actor_fraction
+
+# Environment
+environment:
+  exploding_frac: 0.01
+  episode_length: 25
+  exploding: true
+  # Agent
+  n_arm: 10
+  d_arm: 10
+  k: 2
+  sigma_r: 1.0
+  beta: 0.5
+
+# Guardrail
+guardrail_new_non_iid:
+  mean_type: "arithmetic"
+  posterior_increases: false
+  softmax_temperature: null
+  power_mean_exponent: 1.0
+  quantile: 0.8
+  harm_estimates_weights:
+    max: 1.0
+    mean: 0.0
+    quantile: 0.0
+
+# Plotting parameters
+plotting:
+  figsize:
+    width: 20
+    height: 6
+  fonts:
+    title: 24
+    axis_label: 22
+    legend: 18
+    ticks: 18
+  lines:
+    width: 2
+    marker_size: 6
+    error_cap_thickness: 2
+  dpi: 300
+  grid: false
